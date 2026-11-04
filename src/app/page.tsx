@@ -1,110 +1,102 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { signOut } from "@/app/actions";
+import { AddProject } from "@/components/add-project";
+import { DashboardShell } from "@/components/dashboard-shell";
+import { FitGrid } from "@/components/fit-grid";
 import { ProjectCard } from "@/components/project-card";
-import { QuickCapture } from "@/components/quick-capture";
-import { getProjects } from "@/lib/data";
+import { TodoPanel } from "@/components/todo-panel";
+import { getDashboard } from "@/lib/data";
 import { isStale } from "@/lib/time";
-import { STATUS_ORDER, type Status } from "@/lib/types";
 
-const SECTION_LABEL: Record<Status, string> = {
-  active: "Active",
-  exploring: "Exploring",
-  raw: "Raw ideas",
-  parked: "Parked",
-  done: "Done",
-  killed: "Killed",
-};
-
-/** These start collapsed so the live work stays on screen. */
-const COLLAPSED: readonly Status[] = ["parked", "done", "killed"];
-
-export default function Dashboard() {
+export default function Dashboard({ searchParams }: PageProps<"/">) {
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-16">
-      <header className="flex items-center justify-between pt-[max(1rem,env(safe-area-inset-top))] pb-3">
-        <h1 className="text-xl font-semibold tracking-tight">Project Hub</h1>
+    <main className="flex h-dvh flex-col overflow-hidden px-4 lg:px-6">
+      <header className="flex items-center justify-between pt-[max(1rem,env(safe-area-inset-top))] pb-4">
+        <h1 className="text-lg font-semibold tracking-tight text-muted">Nova</h1>
         <form action={signOut}>
-          <button type="submit" className="text-sm text-muted">
+          <button type="submit" className="text-sm text-muted hover:text-foreground">
             Sign out
           </button>
         </form>
       </header>
 
-      <div className="sticky top-0 z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur">
-        <QuickCapture />
-      </div>
-
-      <Suspense fallback={<ListSkeleton />}>
-        <ProjectList />
+      <Suspense fallback={<Skeleton />}>
+        <DashboardContent searchParams={searchParams} />
       </Suspense>
     </main>
   );
 }
 
-async function ProjectList() {
-  const { projects, now } = await getProjects();
-
-  if (projects.length === 0) {
-    return (
-      <p className="mt-10 text-center text-sm text-muted">
-        No projects yet. Type an idea above and press Enter.
-      </p>
-    );
-  }
-
-  const staleCount = projects.filter((p) => isStale(p, now)).length;
+async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
+  const { view } = await searchParams;
+  const showArchive = view === "archive";
+  const { live, archived, todos, now } = await getDashboard();
+  const projects = showArchive ? archived : live;
+  const staleCount = live.filter((p) => isStale(p, now)).length;
 
   return (
-    <div className="mt-4 flex flex-col gap-6">
-      {staleCount > 0 && (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-          {staleCount} live project{staleCount === 1 ? "" : "s"} untouched for 14+ days. Move,
-          park, or kill {staleCount === 1 ? "it" : "them"}.
-        </p>
-      )}
-
-      {STATUS_ORDER.map((status) => {
-        const group = projects.filter((p) => p.status === status);
-        if (group.length === 0) return null;
-
-        const cards = (
-          <div className="mt-2 flex flex-col gap-2">
-            {group.map((p) => (
-              <ProjectCard key={p.id} project={p} now={now} />
-            ))}
+    <DashboardShell
+      openTodos={todos.filter((t) => !t.done).length}
+      todos={<TodoPanel todos={todos} />}
+      grid={
+        projects.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-stone-300 p-6 text-center text-sm text-muted dark:border-stone-700">
+            {showArchive ? "Nothing parked, done, or killed yet." : "No live projects yet. Tap + below to add one."}
           </div>
-        );
-        const heading = (
-          <>
-            {SECTION_LABEL[status]} <span className="font-normal text-muted">{group.length}</span>
-          </>
-        );
-
-        return COLLAPSED.includes(status) ? (
-          <details key={status} className="group">
-            <summary className="cursor-pointer list-none text-sm font-semibold uppercase tracking-wide">
-              <span className="mr-1 inline-block transition-transform group-open:rotate-90">›</span>
-              {heading}
-            </summary>
-            {cards}
-          </details>
         ) : (
-          <section key={status}>
-            <h2 className="text-sm font-semibold uppercase tracking-wide">{heading}</h2>
-            {cards}
-          </section>
-        );
-      })}
-    </div>
+          <div className="min-h-0 flex-1">
+            <FitGrid>
+              {projects.map((p) => (
+                <ProjectCard key={p.id} project={p} now={now} />
+              ))}
+            </FitGrid>
+          </div>
+        )
+      }
+      bar={
+        <>
+          <ViewLink href="/" active={!showArchive} label="Live" count={live.length} />
+          <ViewLink href="/?view=archive" active={showArchive} label="Parked & closed" count={archived.length} />
+          <AddProject />
+          {!showArchive && staleCount > 0 && (
+            <span className="hidden text-xs text-amber-600 sm:inline dark:text-amber-400">
+              {staleCount} untouched 14+ days
+            </span>
+          )}
+        </>
+      }
+    />
   );
 }
 
-function ListSkeleton() {
+function ViewLink({
+  href,
+  active,
+  label,
+  count,
+}: {
+  href: string;
+  active: boolean;
+  label: string;
+  count: number;
+}) {
   return (
-    <div className="mt-4 flex flex-col gap-2" aria-hidden>
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="h-24 animate-pulse rounded-xl bg-border/60" />
-      ))}
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`shrink-0 ${active ? "font-medium text-foreground" : "text-muted hover:text-foreground"}`}
+    >
+      {label} <span className="text-muted">{count}</span>
+    </Link>
+  );
+}
+
+function Skeleton() {
+  return (
+    <div className="flex min-h-0 flex-1 gap-5 pb-12" aria-hidden>
+      <div className="flex-1 animate-pulse rounded-2xl bg-stone-200/60 dark:bg-stone-800/60" />
+      <div className="hidden w-80 animate-pulse rounded-2xl bg-stone-200/60 lg:block xl:w-96 dark:bg-stone-800/60" />
     </div>
   );
 }

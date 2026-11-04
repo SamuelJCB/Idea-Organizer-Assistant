@@ -1,4 +1,4 @@
-# Project Hub
+# Nova
 
 A personal app for capturing project ideas, keeping one clear next action on each, and parking or killing them cleanly.
 

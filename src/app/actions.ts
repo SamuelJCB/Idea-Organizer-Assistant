@@ -82,3 +82,47 @@ export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
   redirect("/login");
 }
+
+// ---------------------------------------------------------------------------
+// To-dos
+// ---------------------------------------------------------------------------
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export async function addTodo(formData: FormData): Promise<void> {
+  const body = text(formData, "body", 500);
+  if (!body) return;
+  const due = text(formData, "due_date", 10);
+  const { supabase, userId } = await requireUser();
+  const { error } = await supabase.from("todos").insert({
+    body,
+    due_date: DATE_RE.test(due) ? due : null,
+    user_id: userId,
+  });
+  if (error) throw new Error(`Could not add to-do: ${error.message}`);
+  refresh();
+}
+
+export async function setTodoDone(id: string, done: boolean): Promise<void> {
+  const { supabase } = await requireUser();
+  const { error } = await supabase
+    .from("todos")
+    .update({ done, done_at: done ? new Date().toISOString() : null })
+    .eq("id", id);
+  if (error) throw new Error(`Could not update to-do: ${error.message}`);
+  refresh();
+}
+
+export async function deleteTodo(id: string): Promise<void> {
+  const { supabase } = await requireUser();
+  const { error } = await supabase.from("todos").delete().eq("id", id);
+  if (error) throw new Error(`Could not delete to-do: ${error.message}`);
+  refresh();
+}
+
+export async function clearDoneTodos(): Promise<void> {
+  const { supabase } = await requireUser();
+  const { error } = await supabase.from("todos").delete().eq("done", true);
+  if (error) throw new Error(`Could not clear to-dos: ${error.message}`);
+  refresh();
+}

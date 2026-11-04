@@ -8,7 +8,7 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Project Hub",
+  title: "Nova",
   description: "Capture, organize, and move projects forward.",
 };
 

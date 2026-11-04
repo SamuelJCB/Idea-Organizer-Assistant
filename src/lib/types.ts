@@ -49,10 +49,35 @@ export type ProjectLog = {
   body: string;
 };
 
+export type Todo = {
+  id: string;
+  user_id: string;
+  created_at: string;
+  body: string;
+  /** Calendar date, "YYYY-MM-DD". */
+  due_date: string | null;
+  done: boolean;
+  done_at: string | null;
+};
+
 /** Shape the Supabase client uses to type queries. Mirrors supabase/migrations. */
 export type Database = {
   public: {
     Tables: {
+      todos: {
+        Row: Todo;
+        Insert: {
+          id?: string;
+          user_id?: string;
+          created_at?: string;
+          body: string;
+          due_date?: string | null;
+          done?: boolean;
+          done_at?: string | null;
+        };
+        Update: Partial<Todo>;
+        Relationships: [];
+      };
       projects: {
         Row: Project;
         Insert: {

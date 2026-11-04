@@ -22,7 +22,7 @@ begin
     (owner, 'Questrom Honors Program A-board program-year planning', 'community', 'active', null),
     (owner, 'Presidents Club', 'community', 'active',
      'BU community for high-achieving students.'),
-    (owner, 'Project Hub', 'software', 'active',
+    (owner, 'Nova', 'software', 'active',
      'This app.'),
     (owner, 'Waterless dish cleaning system for camping', 'hardware product', 'raw', null),
     (owner, 'Wall-mounted retractable resistance band system', 'hardware product', 'raw', null),
