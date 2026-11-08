@@ -40,7 +40,7 @@ export function DashboardShell({
 
       {/* Bar sits under the cards only; the spacer keeps it out from under the to-do column. */}
       <div className={`gap-5 py-3 ${onProjects ? "flex" : "hidden lg:flex"}`}>
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-5 text-sm">{bar}</div>
+        <div className="relative flex min-w-0 flex-1 items-center justify-center gap-5 text-sm">{bar}</div>
         <div className="hidden lg:block lg:w-80 lg:shrink-0 xl:w-96" />
       </div>
 

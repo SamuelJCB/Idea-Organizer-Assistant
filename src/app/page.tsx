@@ -57,8 +57,8 @@ async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchPa
       bar={
         <>
           <ViewLink href="/" active={!showArchive} label="Live" count={live.length} />
-          <ViewLink href="/?view=archive" active={showArchive} label="Parked & closed" count={archived.length} />
           <AddProject />
+          <ArchiveLink active={showArchive} count={archived.length} />
           {!showArchive && staleCount > 0 && (
             <span className="hidden text-xs text-amber-600 sm:inline dark:text-amber-400">
               {staleCount} untouched 14+ days
@@ -88,6 +88,24 @@ function ViewLink({
       className={`shrink-0 ${active ? "font-medium text-foreground" : "text-muted hover:text-foreground"}`}
     >
       {label} <span className="text-muted">{count}</span>
+    </Link>
+  );
+}
+
+/** Parked, done and killed projects live behind a bin icon at the left of the bar. */
+function ArchiveLink({ active, count }: { active: boolean; count: number }) {
+  return (
+    <Link
+      href={active ? "/" : "/?view=archive"}
+      aria-current={active ? "page" : undefined}
+      aria-label={`Parked & closed projects (${count})`}
+      title="Parked & closed"
+      className={`absolute left-0 flex items-center gap-1 ${active ? "text-foreground" : "text-muted hover:text-foreground"}`}
+    >
+      <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M4 7h16M10 11v6M14 11v6M5.5 7l1 12a2 2 0 0 0 2 1.8h7a2 2 0 0 0 2-1.8l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+      </svg>
+      {count > 0 && <span className="text-xs">{count}</span>}
     </Link>
   );
 }
