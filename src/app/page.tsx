@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { signOut } from "@/app/actions";
 import { AddProject } from "@/components/add-project";
 import { DashboardShell } from "@/components/dashboard-shell";
@@ -28,11 +28,24 @@ export default function Dashboard({ searchParams }: PageProps<"/">) {
   );
 }
 
+type View = "live" | "done" | "bin";
+
+const EMPTY: Record<View, string> = {
+  live: "No live projects yet. Tap + below to add one.",
+  done: "No completed projects yet.",
+  bin: "Nothing parked or thrown away.",
+};
+
 async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
-  const { view } = await searchParams;
-  const showArchive = view === "archive";
+  const { view: param } = await searchParams;
+  const view: View = param === "done" || param === "bin" ? param : "live";
   const { live, archived, todos, now } = await getDashboard();
-  const projects = showArchive ? archived : live;
+  const projects =
+    view === "live"
+      ? live
+      : view === "done"
+        ? archived.filter((p) => p.status === "done")
+        : archived.filter((p) => p.status !== "done");
   const staleCount = live.filter((p) => isStale(p, now)).length;
 
   return (
@@ -42,7 +55,7 @@ async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchPa
       grid={
         projects.length === 0 ? (
           <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-stone-300 p-6 text-center text-sm text-muted dark:border-stone-700">
-            {showArchive ? "Nothing parked, done, or killed yet." : "No live projects yet. Tap + below to add one."}
+            {EMPTY[view]}
           </div>
         ) : (
           <div className="min-h-0 flex-1">
@@ -56,10 +69,17 @@ async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchPa
       }
       bar={
         <>
-          <ViewLink href="/" active={!showArchive} label="Live" count={live.length} />
+          <ViewLink href="/" active={view === "live"} label="Live">
+            Live
+          </ViewLink>
+          <ViewLink href="/?view=done" active={view === "done"} label="Completed projects">
+            <Icon d="M8.5 12.5l2.5 2.5 4.5-5M7 4h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z" />
+          </ViewLink>
+          <ViewLink href="/?view=bin" active={view === "bin"} label="Parked and thrown-away projects">
+            <Icon d="M4 7h16M10 11v6M14 11v6M5.5 7l1 12a2 2 0 0 0 2 1.8h7a2 2 0 0 0 2-1.8l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+          </ViewLink>
           <AddProject />
-          <ArchiveLink active={showArchive} count={archived.length} />
-          {!showArchive && staleCount > 0 && (
+          {view === "live" && staleCount > 0 && (
             <span className="hidden text-xs text-amber-600 sm:inline dark:text-amber-400">
               {staleCount} untouched 14+ days
             </span>
@@ -74,39 +94,40 @@ function ViewLink({
   href,
   active,
   label,
-  count,
+  children,
 }: {
   href: string;
   active: boolean;
   label: string;
-  count: number;
+  children: ReactNode;
 }) {
   return (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`shrink-0 ${active ? "font-medium text-foreground" : "text-muted hover:text-foreground"}`}
+      aria-label={label}
+      title={label}
+      className={`flex shrink-0 items-center ${active ? "font-medium text-foreground" : "text-muted hover:text-foreground"}`}
     >
-      {label} <span className="text-muted">{count}</span>
+      {children}
     </Link>
   );
 }
 
-/** Parked, done and killed projects live behind a bin icon at the left of the bar. */
-function ArchiveLink({ active, count }: { active: boolean; count: number }) {
+function Icon({ d }: { d: string }) {
   return (
-    <Link
-      href={active ? "/" : "/?view=archive"}
-      aria-current={active ? "page" : undefined}
-      aria-label={`Parked & closed projects (${count})`}
-      title="Parked & closed"
-      className={`absolute left-0 flex items-center gap-1 ${active ? "text-foreground" : "text-muted hover:text-foreground"}`}
+    <svg
+      viewBox="0 0 24 24"
+      className="size-[18px]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
     >
-      <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M4 7h16M10 11v6M14 11v6M5.5 7l1 12a2 2 0 0 0 2 1.8h7a2 2 0 0 0 2-1.8l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-      </svg>
-      {count > 0 && <span className="text-xs">{count}</span>}
-    </Link>
+      <path d={d} />
+    </svg>
   );
 }
 
