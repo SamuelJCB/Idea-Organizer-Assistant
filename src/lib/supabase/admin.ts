@@ -18,7 +18,10 @@ export function createAdminClient() {
 
 /** The one Nova user the connector reads and writes for. */
 export function ownerId() {
-  const id = process.env.NOVA_USER_ID;
-  if (!id) throw new Error("NOVA_USER_ID is not set.");
+  // Tolerate extra text pasted around the id (e.g. "user id <uuid>").
+  const id = process.env.NOVA_USER_ID?.match(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+  )?.[0];
+  if (!id) throw new Error("NOVA_USER_ID is missing or is not a valid user id.");
   return id;
 }
