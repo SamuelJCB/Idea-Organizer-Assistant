@@ -202,7 +202,9 @@ async function callTool(name: string, args: Json): Promise<ToolResult> {
   try {
     return text(await runTool(name, args));
   } catch (error) {
-    const msg = error instanceof ToolError ? error.message : "Nova had a problem saving that. Try again.";
+    // Only the token holder sees this, and these messages never contain keys.
+    const detail = isObject(error) && typeof error.message === "string" ? error.message : String(error);
+    const msg = error instanceof ToolError ? error.message : `Nova had a problem: ${detail}`;
     if (!(error instanceof ToolError)) console.error("MCP tool error", name, error);
     return { ...text(msg), isError: true };
   }
