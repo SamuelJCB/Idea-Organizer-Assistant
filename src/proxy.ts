@@ -2,7 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseEnv } from "@/lib/supabase/env";
 
-const PUBLIC_PATHS = ["/login", "/auth/"];
+// /api/mcp/ is the Claude connector; it checks its own secret token.
+const PUBLIC_PATHS = ["/login", "/auth/", "/api/mcp/"];
 
 /**
  * Runs before every page request: refreshes the Supabase session cookie and
