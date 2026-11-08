@@ -19,12 +19,14 @@ Stack: Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Supabase (Post
 4. **Auth URLs.** *Authentication → URL Configuration*:
    - Site URL: `http://localhost:3000` (change to the Vercel URL after deploying)
    - Redirect URLs: add `http://localhost:3000/auth/confirm` (and later `https://<your-app>.vercel.app/auth/confirm`)
-5. **Magic-link email template (recommended).** *Authentication → Emails → Magic Link*: replace the link with
+5. **Sign-in email template.** *Authentication → Emails → Magic Link*: set the body to
    ```html
-   <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">Sign in</a>
+   <h2>Sign in to Nova</h2>
+   <p>Your code: <strong>{{ .Token }}</strong></p>
+   <p>Or <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">tap here to sign in</a> (browser only).</p>
    ```
-   Without this, a link only works in the same browser that requested it, which often fails on phones
-   (mail apps open links in their own browser).
+   The code is what the installed app (home-screen icon) uses: it has its own login, separate from
+   Safari, so links from email can't sign it in.
 6. **Run it:** `npm install` then `npm run dev`, and open http://localhost:3000.
 7. **Seed your projects.** After signing in once, run `supabase/seed-samuel.sql` in the SQL Editor.
 
@@ -42,3 +44,8 @@ Stack: Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Supabase (Post
 - `src/lib/data.ts`: all reads; each one re-checks the signed-in user
 - `src/app/actions.ts`: all writes (Server Actions)
 - `src/app/page.tsx`: dashboard; `src/app/projects/[id]/page.tsx`: project detail
+
+## Install as an app
+
+- **iPad / iPhone:** open the site in Safari → Share → **Add to Home Screen**. Sign in inside the app with the emailed code.
+- **Mac (Chrome):** install icon at the right of the address bar, or ⋮ → Cast, save, and share → Install page as app.
