@@ -1,6 +1,6 @@
 import { TiltCard } from "@/components/tilt-card";
 import { ageLabel, isStale } from "@/lib/time";
-import type { Project, Status } from "@/lib/types";
+import { CARD_STEPS, nextSteps, type Project, type Status } from "@/lib/types";
 
 export const STATUS_DOT: Record<Status, string> = {
   raw: "bg-stone-400",
@@ -17,6 +17,7 @@ export const STATUS_DOT: Record<Status, string> = {
  */
 export function ProjectCard({ project, now }: { project: Project; now: number }) {
   const stale = isStale(project, now);
+  const steps = nextSteps(project.next_action);
 
   return (
     <TiltCard
@@ -40,7 +41,7 @@ export function ProjectCard({ project, now }: { project: Project; now: number })
             </span>
           </div>
 
-          <h3 className="mt-[clamp(0.25rem,3cqmin,0.75rem)] line-clamp-3 text-[clamp(0.95rem,9cqmin,1.9rem)] leading-tight font-semibold tracking-tight">
+          <h3 className="mt-[clamp(0.25rem,3cqmin,0.75rem)] line-clamp-2 text-[clamp(0.95rem,9cqmin,1.9rem)] leading-tight font-semibold tracking-tight">
             {project.title}
           </h3>
           {project.domain && (
@@ -49,13 +50,22 @@ export function ProjectCard({ project, now }: { project: Project; now: number })
             </p>
           )}
 
-          <p
-            className={`mt-auto line-clamp-3 pt-2 text-[clamp(0.75rem,5.5cqmin,1.05rem)] leading-snug ${
-              project.next_action ? "" : "italic text-muted"
-            }`}
-          >
-            {project.next_action ? `→ ${project.next_action}` : "No next action"}
-          </p>
+          {steps.length > 0 ? (
+            <ul className="mt-auto space-y-0.5 pt-2 text-[clamp(0.7rem,4.8cqmin,0.95rem)] leading-snug text-muted">
+              {steps.slice(0, CARD_STEPS).map((step, i) => (
+                <li key={i} className="flex gap-1.5">
+                  <span aria-hidden className="opacity-60">
+                    ·
+                  </span>
+                  <span className="truncate">{step}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-auto pt-2 text-[clamp(0.7rem,4.8cqmin,0.95rem)] text-muted italic opacity-70">
+              No next steps
+            </p>
+          )}
         </div>
       </div>
     </TiltCard>

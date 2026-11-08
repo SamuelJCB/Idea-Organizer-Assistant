@@ -121,3 +121,15 @@ export type Database = {
     CompositeTypes: Record<string, never>;
   };
 };
+
+/** Steps shown on a project's card. */
+export const CARD_STEPS = 4;
+
+/** A project's next steps: one per line of `next_action`, list markers removed. */
+export function nextSteps(nextAction: string | null): string[] {
+  if (!nextAction) return [];
+  return nextAction
+    .split("\n")
+    .map((line) => line.replace(/^\s*(?:[-*•→]|\d+[.)])\s*/, "").trim())
+    .filter(Boolean);
+}

@@ -23,11 +23,11 @@ export function ProjectForm({ project }: { project: Project }) {
         />
       </Field>
 
-      <Field label="Next action" htmlFor="next_action" hint="The single concrete next step.">
+      <Field label="Next steps" htmlFor="next_action" hint="One per line. The first 4 show on the card.">
         <textarea
           id="next_action"
           name="next_action"
-          rows={2}
+          rows={4}
           defaultValue={project.next_action ?? ""}
           className="input"
         />

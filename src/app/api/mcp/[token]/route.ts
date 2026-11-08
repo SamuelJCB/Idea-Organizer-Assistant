@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { createAdminClient, ownerId } from "@/lib/supabase/admin";
-import { LIVE_STATUSES, STATUSES, isStatus, type Project } from "@/lib/types";
+import { LIVE_STATUSES, STATUSES, isStatus, nextSteps, type Project } from "@/lib/types";
 
 /**
  * Nova's Claude connector: a remote MCP server (stateless, JSON responses).
@@ -61,7 +61,7 @@ const TOOLS = [
         title: { type: "string", description: "Short name for the project." },
         status: { type: "string", enum: [...STATUSES], description: "Defaults to raw." },
         domain: { type: "string", description: "e.g. hardware product, software, policy, finance, community." },
-        next_action: { type: "string", description: "The single next concrete step." },
+        next_action: { type: "string", description: "Next steps, one per line, most urgent first. The first 4 show on the card." },
         notes: { type: "string", description: "Longer description or details." },
       },
       required: ["title"],
@@ -78,7 +78,7 @@ const TOOLS = [
         title: { type: "string" },
         status: { type: "string", enum: [...STATUSES] },
         domain: { type: "string" },
-        next_action: { type: "string" },
+        next_action: { type: "string", description: "Replaces all next steps. One per line, most urgent first." },
         notes: { type: "string" },
       },
       required: ["project"],
@@ -362,7 +362,8 @@ function pickOne<T extends { id: string }>(rows: T[], ref: string, label: (row: 
 function summarize(p: Project) {
   const parts = [`${p.title} — ${p.status}`];
   if (p.domain) parts.push(p.domain);
-  if (p.next_action) parts.push(`next: ${p.next_action}`);
+  const steps = nextSteps(p.next_action);
+  if (steps.length) parts.push(`next: ${steps.join("; ")}`);
   parts.push(`last touched ${p.last_touched.slice(0, 10)}`, `id ${p.id}`);
   return `- ${parts.join(" · ")}`;
 }
