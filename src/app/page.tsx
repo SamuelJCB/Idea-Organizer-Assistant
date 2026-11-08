@@ -57,7 +57,7 @@ async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchPa
           <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-stone-300 p-6 text-center text-sm text-muted dark:border-stone-700">
             {EMPTY[view]}
           </div>
-        ) : (
+        ) : view === "live" ? (
           <div className="min-h-0 flex-1">
             <FitGrid>
               {projects.map((p) => (
@@ -65,6 +65,19 @@ async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchPa
               ))}
             </FitGrid>
           </div>
+        ) : (
+          <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto">
+            {projects.map((p) => (
+              <li key={p.id}>
+                <Link
+                  href={`/projects/${p.id}`}
+                  className="block truncate rounded-xl bg-surface px-4 py-3 text-sm font-medium shadow-sm ring-1 ring-black/5 transition hover:ring-black/15 dark:ring-white/10 dark:hover:ring-white/20"
+                >
+                  {p.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
         )
       }
       bar={
