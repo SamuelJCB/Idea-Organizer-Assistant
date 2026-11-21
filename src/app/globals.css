@@ -9,10 +9,11 @@
   --accent: #1c1917;
   --accent-foreground: #fafaf9;
   --board-line: #d6d3d1;
-  --piece-inner: #c9dcf2;
-  --piece-inner-target: #dbe8f7;
-  --piece-outer: #ffffff;
-  --piece-outer-target: #f1f6fc;
+  --piece-inner: #ffffff;
+  --piece-inner-target: #f1f6fc;
+  --piece-outer: #c9dcf2;
+  --piece-outer-target: #dbe8f7;
+  --piece-corner: #f6f5f2;
   --board-target: #f0f8ff;
   --board-held: #eaf6ff;
   --board-held-line: #93c5e8;
@@ -30,8 +31,9 @@
     --board-line: #57534e;
     --piece-inner: #2b4566;
     --piece-inner-target: #365579;
-    --piece-outer: #1c1917;
-    --piece-outer-target: #292f38;
+    --piece-outer: #1f3048;
+    --piece-outer-target: #2a3f5c;
+    --piece-corner: #171412;
     --board-target: #243a52;
     --board-held: #2f5573;
     --board-held-line: #7fb6dc;
@@ -88,6 +90,10 @@ body {
 
 .board-piece-outer {
   fill: var(--piece-outer);
+}
+
+.board-piece-corner {
+  fill: var(--piece-corner);
 }
 
 .board-piece-target {

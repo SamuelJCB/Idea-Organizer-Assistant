@@ -358,7 +358,7 @@ export function ProjectBoard({
               const ring = ringOf(shown, id);
               const classes = [
                 "board-piece",
-                ring === "inner" ? "board-piece-inner" : ring === "outer" ? "board-piece-outer" : "",
+                `board-piece-${ring}`,
                 drag?.id === id ? "board-piece-held" : "",
                 (ring === "corner" ? slot.corner?.index === heldCorner : drag?.ring === ring)
                   ? "board-piece-target"
