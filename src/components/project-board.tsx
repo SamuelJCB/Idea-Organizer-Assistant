@@ -358,6 +358,7 @@ export function ProjectBoard({
               const ring = ringOf(shown, id);
               const classes = [
                 "board-piece",
+                ring === "inner" ? "board-piece-inner" : ring === "outer" ? "board-piece-outer" : "",
                 drag?.id === id ? "board-piece-held" : "",
                 (ring === "corner" ? slot.corner?.index === heldCorner : drag?.ring === ring)
                   ? "board-piece-target"
@@ -413,7 +414,7 @@ export function ProjectBoard({
                 </h3>
                 {text.showStep && (
                   <p
-                    className="mt-1 w-full text-xs text-muted"
+                    className="mt-1 w-full text-xs text-foreground/70"
                     style={{
                       lineHeight: `${STEP_LINE_PX}px`,
                       display: "-webkit-box",

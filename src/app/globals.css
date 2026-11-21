@@ -9,9 +9,13 @@
   --accent: #1c1917;
   --accent-foreground: #fafaf9;
   --board-line: #d6d3d1;
-  --board-target: #e0f2fe;
-  --board-held: #bae6fd;
-  --board-held-line: #38bdf8;
+  --piece-inner: #c9dcf2;
+  --piece-inner-target: #dbe8f7;
+  --piece-outer: #e3edf8;
+  --piece-outer-target: #eff5fc;
+  --board-target: #f0f8ff;
+  --board-held: #eaf6ff;
+  --board-held-line: #93c5e8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -24,9 +28,13 @@
     --accent: #f5f5f4;
     --accent-foreground: #1c1917;
     --board-line: #57534e;
-    --board-target: #0c3a52;
-    --board-held: #075985;
-    --board-held-line: #38bdf8;
+    --piece-inner: #2b4566;
+    --piece-inner-target: #365579;
+    --piece-outer: #1f3048;
+    --piece-outer-target: #2a3f5c;
+    --board-target: #243a52;
+    --board-held: #2f5573;
+    --board-held-line: #7fb6dc;
   }
 }
 
@@ -75,8 +83,24 @@ body {
   stroke: var(--board-line);
 }
 
+.board-piece-inner {
+  fill: var(--piece-inner);
+}
+
+.board-piece-outer {
+  fill: var(--piece-outer);
+}
+
 .board-piece-target {
   fill: var(--board-target);
+}
+
+.board-piece-inner.board-piece-target {
+  fill: var(--piece-inner-target);
+}
+
+.board-piece-outer.board-piece-target {
+  fill: var(--piece-outer-target);
 }
 
 .board-piece.board-piece-held {
