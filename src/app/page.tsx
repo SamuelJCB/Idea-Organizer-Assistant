@@ -5,6 +5,7 @@ import { AddProject } from "@/components/add-project";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { FitGrid } from "@/components/fit-grid";
 import { ProjectCard } from "@/components/project-card";
+import { SaveDevice } from "@/components/save-device";
 import { TodoPanel } from "@/components/todo-panel";
 import { getDashboard } from "@/lib/data";
 import { isStale } from "@/lib/time";
@@ -14,11 +15,14 @@ export default function Dashboard({ searchParams }: PageProps<"/">) {
     <main className="flex h-dvh flex-col overflow-hidden px-4 lg:px-6">
       <header className="flex items-center justify-between pt-[max(1rem,env(safe-area-inset-top))] pb-4">
         <h1 className="text-lg font-semibold tracking-tight text-muted">Nova</h1>
-        <form action={signOut}>
-          <button type="submit" className="text-sm text-muted hover:text-foreground">
-            Sign out
-          </button>
-        </form>
+        <div className="flex items-center gap-4">
+          <SaveDevice />
+          <form action={signOut}>
+            <button type="submit" className="text-sm text-muted hover:text-foreground">
+              Sign out
+            </button>
+          </form>
+        </div>
       </header>
 
       <Suspense fallback={<Skeleton />}>

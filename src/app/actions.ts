@@ -80,7 +80,8 @@ export async function deleteProject(id: string): Promise<void> {
 export async function signOut(): Promise<void> {
   const { supabase } = await requireUser();
   await supabase.auth.signOut();
-  redirect("/login");
+  // Tells the login page not to open Touch ID right after signing out.
+  redirect("/login?signedout=1");
 }
 
 // ---------------------------------------------------------------------------
