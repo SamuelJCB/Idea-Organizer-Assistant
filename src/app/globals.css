@@ -13,7 +13,7 @@
   --piece-inner-target: #f1f6fc;
   --piece-outer: #dcdad5;
   --piece-outer-target: #e6e4e0;
-  --piece-corner: #f6f5f2;
+  --piece-corner: #e6e4df;
   --board-target: #f0f8ff;
   --board-held: #eaf6ff;
   --board-held-line: #93c5e8;
@@ -33,7 +33,7 @@
     --piece-inner-target: #365579;
     --piece-outer: #292524;
     --piece-outer-target: #35302d;
-    --piece-corner: #171412;
+    --piece-corner: #1f1c1a;
     --board-target: #243a52;
     --board-held: #2f5573;
     --board-held-line: #7fb6dc;
@@ -118,8 +118,7 @@ body {
 }
 
 .board-corner-empty {
-  fill: var(--surface);
-  fill-opacity: 0.4;
+  fill: var(--piece-corner);
   transition: fill 160ms ease, fill-opacity 160ms ease;
 }
 
