@@ -11,8 +11,8 @@
   --board-line: #d6d3d1;
   --piece-inner: #ffffff;
   --piece-inner-target: #f1f6fc;
-  --piece-outer: #c9dcf2;
-  --piece-outer-target: #dbe8f7;
+  --piece-outer: #dcdad5;
+  --piece-outer-target: #e6e4e0;
   --piece-corner: #f6f5f2;
   --board-target: #f0f8ff;
   --board-held: #eaf6ff;
@@ -31,8 +31,8 @@
     --board-line: #57534e;
     --piece-inner: #2b4566;
     --piece-inner-target: #365579;
-    --piece-outer: #1f3048;
-    --piece-outer-target: #2a3f5c;
+    --piece-outer: #292524;
+    --piece-outer-target: #35302d;
     --piece-corner: #171412;
     --board-target: #243a52;
     --board-held: #2f5573;
