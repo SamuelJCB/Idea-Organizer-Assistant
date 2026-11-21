@@ -302,7 +302,8 @@ export function ProjectBoard({
                 className={`board-corner-empty ${drag?.ring === "corner" ? "board-corner-target" : ""}`}
               />
             ))}
-            {pieces.map((id) => {
+            {/* A fixed DOM order: moving the held element would make the browser drop the drag. */}
+            {pieces.toSorted().map((id) => {
               const slot = slots[id] ?? target[id];
               const project = byId.get(id);
               if (!slot || !project) return null;
