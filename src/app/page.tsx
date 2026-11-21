@@ -3,8 +3,7 @@ import { Suspense, type ReactNode } from "react";
 import { signOut } from "@/app/actions";
 import { AddProject } from "@/components/add-project";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { FitGrid } from "@/components/fit-grid";
-import { ProjectCard } from "@/components/project-card";
+import { ProjectBoard } from "@/components/project-board";
 import { SaveDevice } from "@/components/save-device";
 import { TodoPanel } from "@/components/todo-panel";
 import { getDashboard } from "@/lib/data";
@@ -43,14 +42,15 @@ const EMPTY: Record<View, string> = {
 async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
   const { view: param } = await searchParams;
   const view: View = param === "done" || param === "bin" ? param : "live";
-  const { live, archived, todos, now } = await getDashboard();
+  const { live, archived, todos, order, now } = await getDashboard();
   const projects =
     view === "live"
       ? live
       : view === "done"
         ? archived.filter((p) => p.status === "done")
         : archived.filter((p) => p.status !== "done");
-  const staleCount = live.filter((p) => isStale(p, now)).length;
+  const staleIds = live.filter((p) => isStale(p, now)).map((p) => p.id);
+  const staleCount = staleIds.length;
 
   return (
     <DashboardShell
@@ -63,11 +63,7 @@ async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchPa
           </div>
         ) : view === "live" ? (
           <div className="min-h-0 flex-1">
-            <FitGrid>
-              {projects.map((p) => (
-                <ProjectCard key={p.id} project={p} now={now} />
-              ))}
-            </FitGrid>
+            <ProjectBoard projects={projects} order={order} staleIds={staleIds} />
           </div>
         ) : (
           <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto">

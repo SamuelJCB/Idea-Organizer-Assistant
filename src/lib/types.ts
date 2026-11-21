@@ -64,6 +64,12 @@ export type Todo = {
 export type Database = {
   public: {
     Tables: {
+      project_order: {
+        Row: { user_id: string; ids: string[]; updated_at: string };
+        Insert: { user_id?: string; ids: string[]; updated_at?: string };
+        Update: { user_id?: string; ids?: string[]; updated_at?: string };
+        Relationships: [];
+      };
       todos: {
         Row: Todo;
         Insert: {

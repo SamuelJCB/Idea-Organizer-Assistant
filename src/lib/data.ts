@@ -27,12 +27,15 @@ export async function getDashboard(): Promise<{
   live: Project[];
   archived: Project[];
   todos: Todo[];
+  /** Saved board positions. Empty until the project_order table exists and is used. */
+  order: string[];
   now: number;
 }> {
   const { supabase } = await requireUser();
-  const [projectsRes, todosRes] = await Promise.all([
+  const [projectsRes, todosRes, orderRes] = await Promise.all([
     supabase.from("projects").select("*").order("last_touched", { ascending: false }),
     supabase.from("todos").select("*").order("created_at", { ascending: true }),
+    supabase.from("project_order").select("ids").maybeSingle(),
   ]);
   if (projectsRes.error) throw new Error(`Could not load projects: ${projectsRes.error.message}`);
   if (todosRes.error) throw new Error(`Could not load to-dos: ${todosRes.error.message}`);
@@ -43,6 +46,7 @@ export async function getDashboard(): Promise<{
     live: sorted.filter((p) => LIVE_STATUSES.includes(p.status)),
     archived: sorted.filter((p) => !LIVE_STATUSES.includes(p.status)),
     todos: todosRes.data,
+    order: orderRes.data?.ids ?? [],
     now: Date.now(),
   };
 }

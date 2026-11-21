@@ -59,6 +59,27 @@ export async function setStatus(id: string, status: Status): Promise<void> {
   refresh();
 }
 
+/**
+ * Saves a drag on the board. The inner ring means active; leaving it makes a
+ * project exploring. Positions live in their own table so moves don't count as work.
+ */
+export async function moveProject(id: string, ring: "inner" | "outer", ids: string[]): Promise<void> {
+  const { supabase, userId } = await requireUser();
+  const update =
+    ring === "inner"
+      ? supabase.from("projects").update({ status: "active" }).eq("id", id).in("status", ["raw", "exploring"])
+      : supabase.from("projects").update({ status: "exploring" }).eq("id", id).eq("status", "active");
+  const { error } = await update;
+  if (error) throw new Error(`Could not move project: ${error.message}`);
+
+  const { error: orderError } = await supabase
+    .from("project_order")
+    .upsert({ user_id: userId, ids, updated_at: new Date().toISOString() });
+  // The status is saved either way; only the exact position would be lost.
+  if (orderError) console.error("Could not save board order", orderError.message);
+  refresh();
+}
+
 export async function addLog(projectId: string, formData: FormData): Promise<void> {
   const body = text(formData, "body");
   if (!body) return;
