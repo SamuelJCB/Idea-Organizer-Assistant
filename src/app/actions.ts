@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/data";
-import { isStatus, type Status } from "@/lib/types";
+import { cleanOrder, isStatus, type Status } from "@/lib/types";
 
 const MAX_TITLE = 200;
 const MAX_TEXT = 20_000;
@@ -80,11 +80,15 @@ export async function moveProject(
     .neq("status", status);
   if (error) throw new Error(`Could not move project: ${error.message}`);
 
+  const order = cleanOrder(ids);
   const { error: orderError } = await supabase
     .from("project_order")
-    .upsert({ user_id: userId, ids, updated_at: new Date().toISOString() });
-  // The status is saved either way; only the exact position would be lost.
-  if (orderError) console.error("Could not save board order", orderError.message);
+    .upsert({ user_id: userId, ids: order, updated_at: new Date().toISOString() });
+  if (orderError) {
+    // Without the project_order table, the position is kept on the user's account instead.
+    const { error: accountError } = await supabase.auth.updateUser({ data: { board_order: order } });
+    if (accountError) console.error("Could not save board order", accountError.message);
+  }
   refresh();
 }
 

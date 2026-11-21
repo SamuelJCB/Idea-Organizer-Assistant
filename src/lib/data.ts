@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { LIVE_STATUSES, STATUS_ORDER, type Project, type ProjectLog, type Todo } from "@/lib/types";
+import { cleanOrder, LIVE_STATUSES, STATUS_ORDER, type Project, type ProjectLog, type Todo } from "@/lib/types";
 
 /**
  * Returns a Supabase client plus the verified user id, or sends the visitor
@@ -27,7 +27,7 @@ export async function getDashboard(): Promise<{
   live: Project[];
   archived: Project[];
   todos: Todo[];
-  /** Saved board positions. Empty until the project_order table exists and is used. */
+  /** Saved board positions, from project_order or else the user's account. */
   order: string[];
   now: number;
 }> {
@@ -40,13 +40,19 @@ export async function getDashboard(): Promise<{
   if (projectsRes.error) throw new Error(`Could not load projects: ${projectsRes.error.message}`);
   if (todosRes.error) throw new Error(`Could not load to-dos: ${todosRes.error.message}`);
 
+  let order = orderRes.data?.ids ?? [];
+  if (!orderRes.data) {
+    const { data: account } = await supabase.auth.getUser();
+    order = cleanOrder(account.user?.user_metadata?.board_order);
+  }
+
   const rank = (p: Project) => STATUS_ORDER.indexOf(p.status);
   const sorted = [...projectsRes.data].sort((a, b) => rank(a) - rank(b));
   return {
     live: sorted.filter((p) => LIVE_STATUSES.includes(p.status)),
     archived: sorted.filter((p) => !LIVE_STATUSES.includes(p.status)),
     todos: todosRes.data,
-    order: orderRes.data?.ids ?? [],
+    order,
     now: Date.now(),
   };
 }

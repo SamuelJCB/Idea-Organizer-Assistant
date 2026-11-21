@@ -25,6 +25,15 @@ export const DOMAIN_SUGGESTIONS = [
   "physics",
 ];
 
+const MAX_BOARD_IDS = 100;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A saved board order, keeping only well-formed ids. */
+export function cleanOrder(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((id): id is string => typeof id === "string" && UUID.test(id)).slice(0, MAX_BOARD_IDS);
+}
+
 export function isStatus(value: unknown): value is Status {
   return typeof value === "string" && (STATUSES as readonly string[]).includes(value);
 }
