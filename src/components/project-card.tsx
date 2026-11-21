@@ -44,11 +44,6 @@ export function ProjectCard({ project, now }: { project: Project; now: number })
           <h3 className="mt-[clamp(0.25rem,3cqmin,0.75rem)] line-clamp-2 text-[clamp(0.95rem,9cqmin,1.9rem)] leading-tight font-semibold tracking-tight">
             {project.title}
           </h3>
-          {project.domain && (
-            <p className="mt-1 truncate text-[clamp(0.7rem,4.5cqmin,0.95rem)] text-muted">
-              {project.domain}
-            </p>
-          )}
 
           {steps.length > 0 ? (
             <ul className="mt-auto space-y-0.5 pt-2 text-[clamp(0.7rem,4.8cqmin,0.95rem)] leading-snug text-muted">
