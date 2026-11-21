@@ -120,10 +120,3 @@ export async function deleteTodo(id: string): Promise<void> {
   if (error) throw new Error(`Could not delete to-do: ${error.message}`);
   refresh();
 }
-
-export async function clearDoneTodos(): Promise<void> {
-  const { supabase } = await requireUser();
-  const { error } = await supabase.from("todos").delete().eq("done", true);
-  if (error) throw new Error(`Could not clear to-dos: ${error.message}`);
-  refresh();
-}

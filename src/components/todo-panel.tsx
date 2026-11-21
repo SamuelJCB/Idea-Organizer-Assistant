@@ -1,32 +1,33 @@
 "use client";
 
-import { useOptimistic, useRef, useSyncExternalStore, useTransition } from "react";
-import { addTodo, clearDoneTodos, deleteTodo, setTodoDone } from "@/app/actions";
+import { useOptimistic, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { addTodo, deleteTodo, setTodoDone } from "@/app/actions";
 import type { Todo } from "@/lib/types";
+
+/** How many finished to-dos "Recently completed" shows. Older ones stay saved. */
+const RECENT_DONE = 20;
 
 type Change =
   | { type: "add"; todo: Todo }
-  | { type: "toggle"; id: string; done: boolean }
-  | { type: "delete"; id: string }
-  | { type: "clear" };
+  | { type: "toggle"; id: string; doneAt: string | null }
+  | { type: "delete"; id: string };
 
 function apply(todos: Todo[], change: Change): Todo[] {
   switch (change.type) {
     case "add":
       return [...todos, change.todo];
     case "toggle":
-      return todos.map((t) => (t.id === change.id ? { ...t, done: change.done } : t));
+      return todos.map((t) =>
+        t.id === change.id ? { ...t, done: change.doneAt !== null, done_at: change.doneAt } : t,
+      );
     case "delete":
       return todos.filter((t) => t.id !== change.id);
-    case "clear":
-      return todos.filter((t) => !t.done);
   }
 }
 
-/** Open items first, soonest due first, undated last; done items at the bottom. */
-function sortTodos(todos: Todo[]): Todo[] {
-  return [...todos].sort((a, b) => {
-    if (a.done !== b.done) return a.done ? 1 : -1;
+/** Open items, soonest due first, undated last. */
+function openTodos(todos: Todo[]): Todo[] {
+  return todos.filter((t) => !t.done).sort((a, b) => {
     if (a.due_date !== b.due_date) {
       if (!a.due_date) return 1;
       if (!b.due_date) return -1;
@@ -34,6 +35,14 @@ function sortTodos(todos: Todo[]): Todo[] {
     }
     return a.created_at < b.created_at ? -1 : 1;
   });
+}
+
+/** The most recently finished items, newest first. */
+function recentlyDone(todos: Todo[]): Todo[] {
+  return todos
+    .filter((t) => t.done)
+    .sort((a, b) => (b.done_at ?? "").localeCompare(a.done_at ?? ""))
+    .slice(0, RECENT_DONE);
 }
 
 /** Today's date in the viewer's own time zone, as "YYYY-MM-DD". */
@@ -76,15 +85,17 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
   const today = useToday();
   const [, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
-  const sorted = sortTodos(shown);
-  const doneCount = shown.filter((t) => t.done).length;
-  const openCount = shown.length - doneCount;
+  const [showDone, setShowDone] = useState(false);
+  const open = openTodos(shown);
+  const done = recentlyDone(shown);
+  const visible = showDone ? done : open;
 
   function add(formData: FormData) {
     const body = String(formData.get("body") ?? "").trim();
     if (!body) return;
     const due = String(formData.get("due_date") ?? "");
     formRef.current?.reset();
+    setShowDone(false);
     startTransition(async () => {
       change({
         type: "add",
@@ -112,8 +123,8 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
   return (
     <div className="flex h-full min-h-0 flex-col rounded-2xl bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04),0_2px_8px_rgb(0_0_0/0.04)]">
       <div className="flex items-baseline justify-between px-4 pt-4">
-        <h2 className="font-semibold tracking-tight">To do</h2>
-        <span className="text-xs text-muted">{openCount} open</span>
+        <h2 className="font-semibold tracking-tight">{showDone ? "Recently completed" : "To do"}</h2>
+        {!showDone && <span className="text-xs text-muted">{open.length} open</span>}
       </div>
 
       {/* The date row only appears while typing a to-do, to keep the panel clean. */}
@@ -148,10 +159,12 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
       </form>
 
       <ul className="min-h-0 flex-1 overflow-y-auto">
-        {sorted.length === 0 && (
-          <li className="px-4 py-6 text-center text-sm text-muted">Nothing to do. Nice.</li>
+        {visible.length === 0 && (
+          <li className="px-4 py-6 text-center text-sm text-muted">
+            {showDone ? "Nothing completed yet." : "Nothing to do. Nice."}
+          </li>
         )}
-        {sorted.map((todo) => {
+        {visible.map((todo) => {
           const due = todo.due_date && !todo.done && today ? dueLabel(todo.due_date, today) : null;
           const pending = todo.id.startsWith("pending-");
           return (
@@ -163,7 +176,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
                 aria-label={`Mark "${todo.body}" ${todo.done ? "not done" : "done"}`}
                 disabled={pending}
                 onClick={() =>
-                  run({ type: "toggle", id: todo.id, done: !todo.done }, () =>
+                  run({ type: "toggle", id: todo.id, doneAt: todo.done ? null : new Date().toISOString() }, () =>
                     setTodoDone(todo.id, !todo.done),
                   )
                 }
@@ -176,7 +189,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
                 {todo.done && "✓"}
               </button>
               <div className="min-w-0 flex-1">
-                <p className={`text-sm leading-snug break-words ${todo.done ? "text-muted line-through" : ""}`}>
+                <p className={`text-sm leading-snug break-words ${todo.done ? "text-muted" : ""}`}>
                   {todo.body}
                 </p>
                 {due && (
@@ -199,14 +212,15 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
         })}
       </ul>
 
-      {doneCount > 0 && (
+      {(showDone || done.length > 0) && (
         <div className="px-4 py-2.5">
           <button
             type="button"
-            onClick={() => run({ type: "clear" }, clearDoneTodos)}
+            onClick={() => setShowDone(!showDone)}
+            aria-pressed={showDone}
             className="text-sm text-muted hover:text-foreground"
           >
-            Clear {doneCount} completed
+            {showDone ? "Back to to-do" : "Recently completed"}
           </button>
         </div>
       )}
