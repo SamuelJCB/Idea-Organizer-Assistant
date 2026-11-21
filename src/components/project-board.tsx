@@ -236,9 +236,14 @@ export function ProjectBoard({
     if (!box) return {};
     return Object.fromEntries(
       Object.entries(target).map(([id, slot]) => {
-        const title = byId.get(id)?.title ?? "";
+        const project = byId.get(id);
+        const title = project?.title ?? "";
         const ring: Ring = slot.corner ? "corner" : slot.r0 < 1e-3 ? "inner" : "outer";
-        return [id, labelBox(slot, box, minLabelWidth(title, ring))];
+        const reserve = nextSteps(project?.next_action ?? null).length ? STEP_ROOM : 0;
+        const textFits = (width: number, height: number) =>
+          width >= (reserve ? MIN_STEP_WIDTH : 0) &&
+          largestSize(title, ring, { x: 0, y: 0, width, height }, reserve) !== null;
+        return [id, labelBox(slot, box, minLabelWidth(title, ring), textFits)];
       }),
     );
   }, [target, box, byId]);

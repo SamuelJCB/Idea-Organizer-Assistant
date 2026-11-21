@@ -284,8 +284,25 @@ function rectFits(x: number, y: number, w: number, h: number, polygon: Point[]) 
   return true;
 }
 
+/** The tallest rectangle of a given shape, centered on `c`, that fits inside the polygon. */
+function tallestAt(c: Point, aspect: number, polygon: Point[], limit: number) {
+  let low = 0;
+  let high = limit;
+  for (let k = 0; k < 8; k++) {
+    const h = (low + high) / 2;
+    if (rectFits(c.x, c.y, h * aspect, h, polygon)) low = h;
+    else high = h;
+  }
+  return low;
+}
+
 /** The largest text rectangle that sits fully inside a piece. */
-export function labelBox(slot: Slot, box: Box, minWidth = 110): Label {
+export function labelBox(
+  slot: Slot,
+  box: Box,
+  minWidth = 110,
+  textFits: (width: number, height: number) => boolean = () => true,
+): Label {
   const full = !slot.corner && slot.a1 - slot.a0 > TAU - 1e-3;
   // A full outer ring has a hole, so its text uses the top section.
   const area =
@@ -298,6 +315,21 @@ export function labelBox(slot: Slot, box: Box, minWidth = 110): Label {
   const polygon = inset(raw, GAP + (slot.corner ? CORNER_LABEL_PADDING : LABEL_PADDING));
   const middle = centroid(polygon);
   const scale = Math.sqrt(Math.abs(signedArea(polygon)) / 2) || 1;
+  const limit = Math.min(box.rx, box.ry) * 2;
+
+  // Center-ring text sits on the piece's balance point whenever it fits there.
+  if (slot.r0 < 1e-3 && !full) {
+    let centered: Label | null = null;
+    for (const aspect of [3, 2.7, 2.4, 2.2, 2, 1.8, 1.6, 1.45, 1.3, 1.1]) {
+      const height = tallestAt(middle, aspect, polygon, limit);
+      const width = height * aspect;
+      if (width < minWidth || !textFits(width, height)) continue;
+      if (!centered || width * height > centered.width * centered.height) {
+        centered = { x: middle.x, y: middle.y, width, height };
+      }
+    }
+    if (centered) return centered;
+  }
 
   const centers: Point[] = [];
   if (slot.corner) {
@@ -322,13 +354,7 @@ export function labelBox(slot: Slot, box: Box, minWidth = 110): Label {
   let bestArea = 0;
   for (const c of centers) {
     for (const aspect of [2.4, 1.6, 1.1]) {
-      let low = 0;
-      let high = Math.min(box.rx, box.ry) * 2;
-      for (let k = 0; k < 8; k++) {
-        const h = (low + high) / 2;
-        if (rectFits(c.x, c.y, h * aspect, h, polygon)) low = h;
-        else high = h;
-      }
+      const low = tallestAt(c, aspect, polygon, limit);
       // Strongly prefer shapes wide enough for the title's longest word.
       const width = low * aspect;
       // Text near the middle of the piece looks balanced, so off-center spots score lower.
