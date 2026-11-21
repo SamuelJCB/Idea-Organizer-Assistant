@@ -71,7 +71,7 @@ async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchPa
               <li key={p.id}>
                 <Link
                   href={`/projects/${p.id}`}
-                  className="block truncate rounded-2xl bg-piece-outer px-4 py-3 text-sm font-medium ring-1 ring-transparent transition hover:ring-piece-inner/40"
+                  className="block truncate rounded-2xl bg-surface px-4 py-3 text-sm font-medium ring-1 ring-transparent transition hover:ring-piece-inner/40"
                 >
                   {p.title}
                 </Link>

@@ -13,9 +13,19 @@ const CORNER = 34;
 /** Skip hexagon corners this close to a cut, which would make tiny edges. */
 const CORNER_SKIP = 0.04;
 const LABEL_PADDING = 14;
+const CORNER_LABEL_PADDING = 5;
+/** Four corner triangles of the board, each split into at most two pieces. */
+export const MAX_CORNER_PIECES = 8;
 
-export type Ring = "inner" | "outer";
-export type Slot = { a0: number; a1: number; r0: number; r1: number };
+export type Ring = "inner" | "outer" | "corner";
+/** Corner pieces are triangles outside the hexagon, so `corner` replaces the polar values. */
+export type Slot = {
+  a0: number;
+  a1: number;
+  r0: number;
+  r1: number;
+  corner?: { index: number; part: number; parts: number };
+};
 export type Box = { cx: number; cy: number; rx: number; ry: number };
 export type Label = { x: number; y: number; width: number; height: number };
 type Point = { x: number; y: number };
@@ -29,6 +39,13 @@ export function boardBox(width: number, height: number): Box {
 
 /** Evenly divides a ring, with the first piece centered at the top. */
 export function ringSlots(count: number, ring: Ring): Slot[] {
+  if (ring === "corner") {
+    const total = Math.min(count, MAX_CORNER_PIECES);
+    return [0, 1, 2, 3].flatMap((index) => {
+      const parts = Math.floor(total / 4) + (index < total % 4 ? 1 : 0);
+      return Array.from({ length: parts }, (_, part) => cornerSlot(index, part, parts));
+    });
+  }
   const span = TAU / Math.max(count, 1);
   const [r0, r1] = ring === "inner" ? [0, INNER_RADIUS] : [INNER_RADIUS, 1];
   return Array.from({ length: count }, (_, i) => {
@@ -37,16 +54,50 @@ export function ringSlots(count: number, ring: Ring): Slot[] {
   });
 }
 
+function cornerSlot(index: number, part: number, parts: number): Slot {
+  return { a0: 0, a1: 0, r0: 1, r1: 1, corner: { index, part, parts } };
+}
+
 /** The whole ring as one piece, used for empty rings. */
-export function wholeRing(ring: Ring): Slot {
+export function wholeRing(ring: Exclude<Ring, "corner">): Slot {
   return ringSlots(1, ring)[0];
+}
+
+/** Corner triangles with no project in them. */
+export function emptyCorners(count: number): Slot[] {
+  const used = new Set(ringSlots(count, "corner").map((slot) => slot.corner?.index));
+  return [0, 1, 2, 3].filter((index) => !used.has(index)).map((index) => cornerSlot(index, 0, 1));
+}
+
+/** A corner piece's triangle: top-left, top-right, bottom-right, bottom-left. */
+function cornerPoints(slot: Slot, box: Box): Point[] {
+  const { index, part, parts } = slot.corner!;
+  const sx = index === 1 || index === 2 ? 1 : -1;
+  const sy = index >= 2 ? 1 : -1;
+  const flat = box.ry * Math.cos(Math.PI / 6);
+  const top = { x: box.cx + (sx * box.rx) / 2, y: box.cy + sy * flat };
+  const side = { x: box.cx + sx * box.rx, y: box.cy };
+  const tip = { x: box.cx + sx * box.rx, y: box.cy + sy * flat };
+  if (parts < 2) return [top, side, tip];
+  const middle = { x: (top.x + side.x) / 2, y: (top.y + side.y) / 2 };
+  return part === 0 ? [top, middle, tip] : [middle, side, tip];
 }
 
 /** Which ring a point is over, and where a new piece would be inserted. */
 export function dropTarget(x: number, y: number, box: Box, otherCount: (ring: Ring) => number) {
   const dx = (x - box.cx) / box.rx;
   const dy = (y - box.cy) / box.ry;
-  const ring: Ring = Math.hypot(dx, dy) / hexReach(Math.atan2(dy, dx)) < INNER_RADIUS ? "inner" : "outer";
+  const reach = Math.hypot(dx, dy) / hexReach(Math.atan2(dy, dx));
+  if (reach >= 1 && otherCount("corner") < MAX_CORNER_PIECES) {
+    const options = ringSlots(otherCount("corner") + 1, "corner");
+    const distance = (slot: Slot) => {
+      const c = centroid(cornerPoints(slot, box));
+      return Math.hypot(c.x - x, c.y - y);
+    };
+    const index = options.reduce((best, slot, i) => (distance(slot) < distance(options[best]) ? i : best), 0);
+    return { ring: "corner" as Ring, index };
+  }
+  const ring: Ring = reach < INNER_RADIUS ? "inner" : "outer";
   const cells = otherCount(ring) + 1;
   const span = TAU / cells;
   const from = START - span / 2;
@@ -184,6 +235,7 @@ function softPath(points: Point[]) {
 
 /** SVG path for a slot. A full outer ring has a hole, so use fill-rule="evenodd". */
 export function slotPath(slot: Slot, box: Box) {
+  if (slot.corner) return softPath(inset(cornerPoints(slot, box), GAP));
   const { a0, a1, r0, r1 } = slot;
   if (a1 - a0 > TAU - 1e-3) {
     const outer = softPath(inset(arc(box, r1, a0, a1, true), GAP));
@@ -228,43 +280,58 @@ function rectFits(x: number, y: number, w: number, h: number, polygon: Point[]) 
 }
 
 /** The largest text rectangle that sits fully inside a piece. */
-export function labelBox(slot: Slot, box: Box): Label {
-  const full = slot.a1 - slot.a0 > TAU - 1e-3;
+export function labelBox(slot: Slot, box: Box, minWidth = 110): Label {
+  const full = !slot.corner && slot.a1 - slot.a0 > TAU - 1e-3;
   // A full outer ring has a hole, so its text uses the top section.
   const area =
     full && slot.r0 > 1e-3 ? { ...slot, a0: START - Math.PI / 3, a1: START + Math.PI / 3 } : slot;
-  const raw =
-    full && slot.r0 < 1e-3
+  const raw = slot.corner
+    ? cornerPoints(slot, box)
+    : full && slot.r0 < 1e-3
       ? arc(box, slot.r1, slot.a0, slot.a1, true)
       : outline(area, box);
-  const polygon = inset(raw, GAP + LABEL_PADDING);
+  const polygon = inset(raw, GAP + (slot.corner ? CORNER_LABEL_PADDING : LABEL_PADDING));
   const middle = centroid(polygon);
   const scale = Math.sqrt(Math.abs(signedArea(polygon)) / 2) || 1;
 
-  let best: Label = { ...at(box, (area.r0 + area.r1) / 2, (area.a0 + area.a1) / 2), width: 0, height: 0 };
+  const centers: Point[] = [];
+  if (slot.corner) {
+    const xs = polygon.map((p) => p.x);
+    const ys = polygon.map((p) => p.y);
+    const [left, top] = [Math.min(...xs), Math.min(...ys)];
+    const [wide, tall] = [Math.max(...xs) - left, Math.max(...ys) - top];
+    for (let i = 1; i <= 9; i++) {
+      for (let j = 1; j <= 9; j++) centers.push({ x: left + (wide * i) / 10, y: top + (tall * j) / 10 });
+    }
+  } else {
+    for (let i = 1; i <= 5; i++) {
+      for (let j = 1; j <= 5; j++) {
+        const a = area.a0 + ((area.a1 - area.a0) * i) / 6;
+        const r = area.r0 + ((area.r1 - area.r0) * j) / 6;
+        centers.push(full && slot.r0 < 1e-3 ? at(box, 0, 0) : at(box, r, a));
+      }
+    }
+  }
+
+  let best: Label = { ...middle, width: 0, height: 0 };
   let bestArea = 0;
-  for (let i = 1; i <= 5; i++) {
-    for (let j = 1; j <= 5; j++) {
-      const a = area.a0 + ((area.a1 - area.a0) * i) / 6;
-      const r = area.r0 + ((area.r1 - area.r0) * j) / 6;
-      const c = full && slot.r0 < 1e-3 ? at(box, 0, 0) : at(box, r, a);
-      for (const aspect of [2.4, 1.6, 1.1]) {
-        let low = 0;
-        let high = Math.min(box.rx, box.ry) * 2;
-        for (let k = 0; k < 8; k++) {
-          const h = (low + high) / 2;
-          if (rectFits(c.x, c.y, h * aspect, h, polygon)) low = h;
-          else high = h;
-        }
-        // Prefer shapes wide enough to hold a line of text.
-        const width = low * aspect;
-        // Text near the middle of the piece looks balanced, so off-center spots score lower.
-        const offCenter = Math.hypot(c.x - middle.x, c.y - middle.y) / scale;
-        const score = low * width * (width >= 110 ? 1 : 0.6) * Math.max(0.2, 1 - offCenter * 1.0);
-        if (score > bestArea) {
-          bestArea = score;
-          best = { x: c.x, y: c.y, width, height: low };
-        }
+  for (const c of centers) {
+    for (const aspect of [2.4, 1.6, 1.1]) {
+      let low = 0;
+      let high = Math.min(box.rx, box.ry) * 2;
+      for (let k = 0; k < 8; k++) {
+        const h = (low + high) / 2;
+        if (rectFits(c.x, c.y, h * aspect, h, polygon)) low = h;
+        else high = h;
+      }
+      // Strongly prefer shapes wide enough for the title's longest word.
+      const width = low * aspect;
+      // Text near the middle of the piece looks balanced, so off-center spots score lower.
+      const offCenter = Math.hypot(c.x - middle.x, c.y - middle.y) / scale;
+      const score = low * width * (width >= minWidth ? 1 : 0.25) * Math.max(0.2, 1 - offCenter * 1.0);
+      if (score > bestArea) {
+        bestArea = score;
+        best = { x: c.x, y: c.y, width, height: low };
       }
     }
   }

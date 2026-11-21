@@ -74,11 +74,11 @@ function dueLabel(due: string, today: string): { text: string; tone: string } {
   if (days === 0) return { text: "Today", tone: "text-amber-800 dark:text-amber-300 font-medium" };
   if (days === 1) return { text: "Tomorrow", tone: "text-foreground" };
   if (days < 7) {
-    return { text: dueDate.toLocaleDateString(undefined, { weekday: "short" }), tone: "text-piece-outer-muted" };
+    return { text: dueDate.toLocaleDateString(undefined, { weekday: "short" }), tone: "text-muted" };
   }
   return {
     text: dueDate.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-    tone: "text-piece-outer-muted",
+    tone: "text-muted",
   };
 }
 
@@ -142,7 +142,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
           autoComplete="off"
           enterKeyHint="done"
           placeholder="Add a to-do…"
-          className="w-full rounded-2xl bg-surface px-4 py-3 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-piece-inner/40"
+          className="w-full rounded-2xl border border-piece-corner/60 bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-piece-inner/40"
         />
         <div className="hidden items-center gap-2 group-focus-within:flex">
           <label htmlFor="todo-due" className="text-xs text-muted">
@@ -173,7 +173,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
           const due = todo.due_date && !todo.done && today ? dueLabel(todo.due_date, today) : null;
           const pending = todo.id.startsWith("pending-");
           return (
-            <li key={todo.id} className="group flex shrink-0 items-start gap-3 rounded-2xl bg-piece-outer px-4 py-3">
+            <li key={todo.id} className="group flex shrink-0 items-start gap-3 rounded-2xl bg-surface px-4 py-3">
               <button
                 type="button"
                 role="checkbox"
@@ -188,13 +188,13 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
                 className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 text-xs ${
                   todo.done
                     ? "border-piece-inner bg-piece-inner text-piece-inner-text"
-                    : "border-piece-outer-muted/60"
+                    : "border-piece-corner"
                 }`}
               >
                 {todo.done && "✓"}
               </button>
               <div className="min-w-0 flex-1">
-                <p className={`text-sm leading-snug break-words ${todo.done ? "text-piece-outer-muted" : ""}`}>
+                <p className={`text-sm leading-snug break-words ${todo.done ? "text-muted" : ""}`}>
                   {todo.body}
                 </p>
                 {due && (
@@ -208,7 +208,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
                 aria-label={`Delete "${todo.body}"`}
                 disabled={pending}
                 onClick={() => run({ type: "delete", id: todo.id }, () => deleteTodo(todo.id))}
-                className="shrink-0 px-1 text-lg leading-none text-piece-outer-muted opacity-60 hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100"
+                className="shrink-0 px-1 text-lg leading-none text-muted opacity-60 hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100"
               >
                 ×
               </button>

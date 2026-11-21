@@ -1,41 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  --background: #efeeeb;
-  --surface: #ffffff;
-  --foreground: #1c1917;
-  --muted: #78716c;
-  --border: #e7e5e4;
-  --accent: #1c1917;
-  --accent-foreground: #fafaf9;
-  --board-line: #8fb0a6;
-  --piece-inner: #2f5d57;
-  --piece-inner-target: #3f7a70;
+  --background: #ece4cf;
+  --surface: #f7f2e6;
+  --foreground: #262c52;
+  --muted: #5f5d70;
+  --border: #d9d0b9;
+  --accent: #313a6a;
+  --accent-foreground: #f7f2e6;
+  --board-line: #8e8b96;
+  --piece-inner: #313a6a;
+  --piece-inner-target: #424d86;
   --piece-inner-text: #ffffff;
-  --piece-inner-muted: #c9ddd7;
-  --piece-outer: #cfe0da;
-  --piece-outer-target: #b4d1c7;
-  --piece-outer-muted: #4a5c56;
-  --board-held: #f0b48a;
-  --board-held-line: #d97b3f;
+  --piece-inner-muted: #d6d8e6;
+  --piece-outer: #3d3f5e;
+  --piece-outer-target: #53567c;
+  --piece-corner: #8e8b96;
+  --piece-corner-target: #a6a3ae;
+  --piece-corner-text: #1c2040;
+  --board-held: #f7f2e6;
+  --board-held-line: #313a6a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0c0a09;
-    --surface: #1c1917;
-    --foreground: #f5f5f4;
-    --muted: #a8a29e;
-    --border: #292524;
-    --accent: #f5f5f4;
-    --accent-foreground: #1c1917;
-    --board-line: #5f8379;
-    --piece-inner: #2f7568;
-    --piece-inner-target: #3a8a7b;
-    --piece-inner-muted: #d3e6e0;
-    --piece-outer: #1f2e2b;
-    --piece-outer-target: #2a403b;
-    --piece-outer-muted: #a9bdb7;
+    --background: #171a2e;
+    --surface: #262a47;
+    --foreground: #ece4cf;
+    --muted: #aeacb8;
+    --border: #33375a;
+    --accent: #ece4cf;
+    --accent-foreground: #171a2e;
+    --board-line: #8e8b96;
+    --piece-inner: #4a568f;
+    --piece-inner-target: #5b68a6;
+    --piece-inner-muted: #e0e2ef;
+    --piece-outer: #3d3f5e;
+    --piece-outer-target: #505378;
+    --board-held: #ece4cf;
+    --board-held-line: #8e8b96;
   }
 }
 
@@ -50,8 +53,8 @@
   --color-piece-inner: var(--piece-inner);
   --color-piece-inner-text: var(--piece-inner-text);
   --color-piece-inner-muted: var(--piece-inner-muted);
-  --color-piece-outer: var(--piece-outer);
-  --color-piece-outer-muted: var(--piece-outer-muted);
+  --color-piece-corner: var(--piece-corner);
+  --color-piece-corner-text: var(--piece-corner-text);
   --color-board-held: var(--board-held);
   --font-sans: var(--font-geist-sans);
 }
@@ -81,7 +84,6 @@ body {
   stroke-width: 2;
   cursor: grab;
   outline: none;
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.05));
   transition: fill 160ms ease, stroke 160ms ease;
 }
 
@@ -97,9 +99,26 @@ body {
 .board-piece-target {
   fill: var(--piece-outer-target);
 }
-
 .board-piece-inner.board-piece-target {
   fill: var(--piece-inner-target);
+}
+
+.board-piece-corner {
+  fill: var(--piece-corner);
+}
+
+.board-piece-corner.board-piece-target {
+  fill: var(--piece-corner-target);
+}
+
+.board-corner-empty {
+  fill: var(--piece-corner);
+  fill-opacity: 0.22;
+  transition: fill-opacity 160ms ease;
+}
+
+.board-corner-target {
+  fill-opacity: 0.55;
 }
 
 .board-piece.board-piece-held {

@@ -16,7 +16,9 @@ import { moveProject } from "@/app/actions";
 import {
   boardBox,
   dropTarget,
+  emptyCorners,
   labelBox,
+  MAX_CORNER_PIECES,
   ringSlots,
   slotPath,
   wholeRing,
@@ -31,11 +33,14 @@ const MOVE_MS = 240;
 /** Grey next-step text: one step, wrapped to at most two lines so it stays readable. */
 const STEP_LINE_PX = 16;
 const STEP_LINES = 2;
+const STEP_ROOM = 4 + STEP_LINES * STEP_LINE_PX;
 const MIN_STEP_WIDTH = 104;
 const TITLE_SIZES: Record<Ring, { max: number; min: number }> = {
   inner: { max: 20, min: 12 },
   outer: { max: 17, min: 14 },
+  corner: { max: 14, min: 11 },
 };
+const RINGS: readonly Ring[] = ["inner", "outer", "corner"];
 /** Conservative average character width and line height, as multiples of font size. */
 const CHAR_WIDTH = 0.56;
 const LINE_HEIGHT = 1.2;
@@ -48,15 +53,23 @@ function initialLayout(projects: Project[], order: string[]): Layout {
   const rank = new Map(order.map((id, i) => [id, i]));
   const position = (p: Project) => rank.get(p.id) ?? Number.MAX_SAFE_INTEGER;
   const sorted = [...projects].sort((a, b) => position(a) - position(b));
+  // Raw ideas live in the corners; any beyond the corners' capacity join the outer ring.
+  const raw = sorted.filter((p) => p.status === "raw").map((p) => p.id);
+  const corner = raw.slice(0, MAX_CORNER_PIECES);
   return {
     inner: sorted.filter((p) => p.status === "active").map((p) => p.id),
-    outer: sorted.filter((p) => p.status !== "active").map((p) => p.id),
+    outer: sorted.filter((p) => p.status !== "active" && !corner.includes(p.id)).map((p) => p.id),
+    corner,
   };
+}
+
+function ringOf(layout: Layout, id: string): Ring {
+  return layout.inner.includes(id) ? "inner" : layout.corner.includes(id) ? "corner" : "outer";
 }
 
 function targetSlots(layout: Layout) {
   const slots: Record<string, Slot> = {};
-  for (const ring of ["inner", "outer"] as const) {
+  for (const ring of RINGS) {
     const ringPieces = ringSlots(layout[ring].length, ring);
     layout[ring].forEach((id, i) => {
       slots[id] = ringPieces[i];
@@ -82,22 +95,28 @@ function wrappedLines(title: string, fontSize: number, width: number) {
   return lines;
 }
 
-/** The largest size at which a title fits its space. */
-function largestSize(title: string, ring: Ring, label: Label) {
+/** The largest size at which a title fits, leaving `reserve` px below it; null if none does. */
+function largestSize(title: string, ring: Ring, label: Label, reserve = 0) {
   const { max, min } = TITLE_SIZES[ring];
-  for (let size = max; size > min; size--) {
+  for (let size = max; size >= min; size--) {
     const lines = wrappedLines(title, size, label.width);
-    if (lines && lines * size * LINE_HEIGHT <= label.height) return size;
+    if (lines && lines * size * LINE_HEIGHT + reserve <= label.height) return size;
   }
-  return min;
+  return null;
+}
+
+/** Label width needed for a title's longest word at the ring's smallest size. */
+function minLabelWidth(title: string, ring: Ring) {
+  const longest = Math.max(...title.split(/\s+|(?<=\/)/).map((word) => word.length));
+  const needed = Math.ceil(longest * TITLE_SIZES[ring].min * CHAR_WIDTH) + 4;
+  return ring === "corner" ? needed : Math.max(110, needed);
 }
 
 /** Line count at the ring's shared size, and whether a next step also fits. */
 function placeText(title: string, size: number, label: Label, hasStep: boolean) {
   const most = Math.max(1, Math.floor(label.height / (size * LINE_HEIGHT)));
   const lines = Math.min(wrappedLines(title, size, label.width) ?? most, most);
-  const stepRoom = 4 + STEP_LINES * STEP_LINE_PX;
-  const showStep = hasStep && label.width >= MIN_STEP_WIDTH && lines * size * LINE_HEIGHT + stepRoom <= label.height;
+  const showStep = hasStep && label.width >= MIN_STEP_WIDTH && lines * size * LINE_HEIGHT + STEP_ROOM <= label.height;
   return { lines, showStep };
 }
 
@@ -118,7 +137,12 @@ function useMovingSlots(target: Record<string, Slot>) {
       const next: Record<string, Slot> = {};
       for (const [id, end] of Object.entries(target)) {
         const start = from[id] ?? end;
-        const mix = (key: keyof Slot) => start[key] + (end[key] - start[key]) * eased;
+        // Triangles and hexagon pieces have different outlines, so they swap without morphing.
+        if (start.corner || end.corner) {
+          next[id] = end;
+          continue;
+        }
+        const mix = (key: "a0" | "a1" | "r0" | "r1") => start[key] + (end[key] - start[key]) * eased;
         next[id] = { a0: mix("a0"), a1: mix("a1"), r0: mix("r0"), r1: mix("r1") };
       }
       latest.current = next;
@@ -168,8 +192,14 @@ export function ProjectBoard({
   // Measured from where pieces are headed, not every animation frame.
   const labels = useMemo(() => {
     if (!box) return {};
-    return Object.fromEntries(Object.entries(target).map(([id, slot]) => [id, labelBox(slot, box)]));
-  }, [target, box]);
+    return Object.fromEntries(
+      Object.entries(target).map(([id, slot]) => {
+        const title = byId.get(id)?.title ?? "";
+        const ring: Ring = slot.corner ? "corner" : slot.r0 < 1e-3 ? "inner" : "outer";
+        return [id, labelBox(slot, box, minLabelWidth(title, ring))];
+      }),
+    );
+  }, [target, box, byId]);
 
   function pointIn(event: PointerEvent) {
     const rect = rootRef.current!.getBoundingClientRect();
@@ -180,6 +210,7 @@ export function ProjectBoard({
     const others: Layout = {
       inner: layout.inner.filter((p) => p !== id),
       outer: layout.outer.filter((p) => p !== id),
+      corner: layout.corner.filter((p) => p !== id),
     };
     const { ring, index } = dropTarget(x, y, box!, (r) => others[r].length);
     const preview = { ...others, [ring]: others[ring].toSpliced(index, 0, id) };
@@ -213,7 +244,7 @@ export function ProjectBoard({
     if (JSON.stringify(next) === JSON.stringify(layout)) return;
     startTransition(async () => {
       setLayout(next);
-      await moveProject(drag.id, drag.ring, [...next.inner, ...next.outer]);
+      await moveProject(drag.id, drag.ring, [...next.inner, ...next.outer, ...next.corner]);
     });
   }
 
@@ -226,25 +257,32 @@ export function ProjectBoard({
     if (event.key === "Enter") router.push(`/projects/${id}`);
   }
 
+  // Next steps show on every inner piece or none, so the ring stays even.
+  // Titles shrink to make room, but only when that lets every piece show its step.
+  const innerStepsFit = shown.inner.every((id) => {
+    const project = byId.get(id);
+    if (!project || !labels[id] || !nextSteps(project.next_action).length) return true;
+    return labels[id].width >= MIN_STEP_WIDTH && largestSize(project.title, "inner", labels[id], STEP_ROOM) !== null;
+  });
+
   // One title size per ring, so pieces read as a set.
   const ringSize = (ring: Ring) => {
     const sizes = shown[ring].flatMap((id) => {
       const project = byId.get(id);
-      return project && labels[id] ? [largestSize(project.title, ring, labels[id])] : [];
+      if (!project || !labels[id]) return [];
+      const reserve = ring === "inner" && innerStepsFit && nextSteps(project.next_action).length ? STEP_ROOM : 0;
+      return [largestSize(project.title, ring, labels[id], reserve) ?? TITLE_SIZES[ring].min];
     });
     return sizes.length ? Math.min(...sizes) : TITLE_SIZES[ring].max;
   };
-  const titleSize: Record<Ring, number> = { inner: ringSize("inner"), outer: ringSize("outer") };
-
-  // Next steps show on every inner piece or none, so the ring stays even.
-  const innerStepsFit = shown.inner.every((id) => {
-    const project = byId.get(id);
-    if (!project || !labels[id] || !nextSteps(project.next_action).length) return true;
-    return placeText(project.title, titleSize.inner, labels[id], true).showStep;
-  });
+  const titleSize: Record<Ring, number> = {
+    inner: ringSize("inner"),
+    outer: ringSize("outer"),
+    corner: ringSize("corner"),
+  };
 
   const dragged = drag ? byId.get(drag.id) : null;
-  const pieces = [...shown.inner, ...shown.outer];
+  const pieces = [...shown.inner, ...shown.outer, ...shown.corner];
 
   return (
     <div ref={rootRef} className={`relative h-full w-full select-none ${drag ? "cursor-grabbing" : ""}`}>
@@ -257,14 +295,22 @@ export function ProjectBoard({
                   <path key={ring} d={slotPath(wholeRing(ring), box)} fillRule="evenodd" className="board-empty" />
                 ),
             )}
+            {emptyCorners(shown.corner.length).map((slot) => (
+              <path
+                key={`corner-${slot.corner?.index}`}
+                d={slotPath(slot, box)}
+                className={`board-corner-empty ${drag?.ring === "corner" ? "board-corner-target" : ""}`}
+              />
+            ))}
             {pieces.map((id) => {
               const slot = slots[id] ?? target[id];
               const project = byId.get(id);
               if (!slot || !project) return null;
-              const ring: Ring = shown.inner.includes(id) ? "inner" : "outer";
+              const ring = ringOf(shown, id);
               const classes = [
                 "board-piece",
                 ring === "inner" ? "board-piece-inner" : "",
+                ring === "corner" ? "board-piece-corner" : "",
                 drag?.id === id ? "board-piece-held" : "",
                 drag?.ring === ring ? "board-piece-target" : "",
                 stale.has(id) ? "board-piece-stale" : "",
@@ -276,7 +322,7 @@ export function ProjectBoard({
                   fillRule="evenodd"
                   role="link"
                   tabIndex={0}
-                  aria-label={`${project.title}, ${ring === "inner" ? "inner" : "outer"} ring`}
+                  aria-label={`${project.title}, ${ring} ring`}
                   className={classes.join(" ")}
                   style={{ touchAction: "none" }}
                   onPointerDown={(e) => onPointerDown(e, id)}
@@ -293,7 +339,7 @@ export function ProjectBoard({
             const label = labels[id];
             const project = byId.get(id);
             if (!label || !project || drag?.id === id) return null;
-            const ring: Ring = shown.inner.includes(id) ? "inner" : "outer";
+            const ring = ringOf(shown, id);
             const step = ring === "inner" && innerStepsFit ? nextSteps(project.next_action)[0] : undefined;
             const size = titleSize[ring];
             const text = placeText(project.title, size, label, Boolean(step));
@@ -301,7 +347,7 @@ export function ProjectBoard({
               <div
                 key={id}
                 className={`board-label pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden text-center ${
-                  ring === "inner" ? "text-piece-inner-text" : "text-foreground"
+                  ring === "corner" ? "text-piece-corner-text" : "text-piece-inner-text"
                 }`}
                 style={{ left: label.x, top: label.y, width: label.width, height: label.height }}
               >

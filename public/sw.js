@@ -5,7 +5,7 @@
 //   cached so the app opens fast.
 // - Everything else (API, sign-in, Server Actions) is left alone.
 
-const VERSION = "nova-v4";
+const VERSION = "nova-v5";
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("install", (event) => {

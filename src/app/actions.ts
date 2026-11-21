@@ -63,13 +63,21 @@ export async function setStatus(id: string, status: Status): Promise<void> {
  * Saves a drag on the board. The inner ring means active; leaving it makes a
  * project exploring. Positions live in their own table so moves don't count as work.
  */
-export async function moveProject(id: string, ring: "inner" | "outer", ids: string[]): Promise<void> {
+export async function moveProject(
+  id: string,
+  ring: "inner" | "outer" | "corner",
+  ids: string[],
+): Promise<void> {
   const { supabase, userId } = await requireUser();
-  const update =
-    ring === "inner"
-      ? supabase.from("projects").update({ status: "active" }).eq("id", id).in("status", ["raw", "exploring"])
-      : supabase.from("projects").update({ status: "exploring" }).eq("id", id).eq("status", "active");
-  const { error } = await update;
+  const status = { inner: "active", outer: "exploring", corner: "raw" }[ring] as Status | undefined;
+  if (!status) throw new Error("Unknown board ring");
+  // Only live projects move, and a project already in this ring keeps its row untouched.
+  const { error } = await supabase
+    .from("projects")
+    .update({ status })
+    .eq("id", id)
+    .in("status", ["raw", "exploring", "active"])
+    .neq("status", status);
   if (error) throw new Error(`Could not move project: ${error.message}`);
 
   const { error: orderError } = await supabase
