@@ -236,6 +236,13 @@ export function ProjectBoard({
   };
   const titleSize: Record<Ring, number> = { inner: ringSize("inner"), outer: ringSize("outer") };
 
+  // Next steps show on every inner piece or none, so the ring stays even.
+  const innerStepsFit = shown.inner.every((id) => {
+    const project = byId.get(id);
+    if (!project || !labels[id] || !nextSteps(project.next_action).length) return true;
+    return placeText(project.title, titleSize.inner, labels[id], true).showStep;
+  });
+
   const dragged = drag ? byId.get(drag.id) : null;
   const pieces = [...shown.inner, ...shown.outer];
 
@@ -286,7 +293,7 @@ export function ProjectBoard({
             const project = byId.get(id);
             if (!label || !project || drag?.id === id) return null;
             const ring: Ring = shown.inner.includes(id) ? "inner" : "outer";
-            const step = ring === "inner" ? nextSteps(project.next_action)[0] : undefined;
+            const step = ring === "inner" && innerStepsFit ? nextSteps(project.next_action)[0] : undefined;
             const size = titleSize[ring];
             const text = placeText(project.title, size, label, Boolean(step));
             return (

@@ -1,20 +1,18 @@
 /**
- * Geometry for the dashboard board: one soft, rounded shape cut into an inner
- * ring of petals and an outer ring of blocks.
+ * Geometry for the dashboard board: one soft hexagon cut into an inner ring of
+ * wedges that meet at the center and an outer ring of blocks.
  * Radii are fractions of the board (0 = center, 1 = edge).
  */
 
-export const INNER_RADIUS = 0.52;
-/** Inner pieces stop short of the center, so they never end in a sharp point. */
-const CORE_RADIUS = 0.09;
+export const INNER_RADIUS = 0.5;
 const START = -Math.PI / 2;
 const TAU = Math.PI * 2;
-const MAX_STRETCH = 1.25;
-const GAP = 4;
-const CORNER = 22;
-const ARC_STEP = Math.PI / 45;
-const LABEL_ARC_STEP = Math.PI / 18;
-const LABEL_PADDING = 12;
+const MAX_STRETCH = 1.6;
+const GAP = 5;
+const CORNER = 34;
+/** Skip hexagon corners this close to a cut, which would make tiny edges. */
+const CORNER_SKIP = 0.04;
+const LABEL_PADDING = 14;
 
 export type Ring = "inner" | "outer";
 export type Slot = { a0: number; a1: number; r0: number; r1: number };
@@ -23,7 +21,8 @@ export type Label = { x: number; y: number; width: number; height: number };
 type Point = { x: number; y: number };
 
 export function boardBox(width: number, height: number): Box {
-  const ry = Math.max(height / 2 - 2, 1);
+  // The hexagon's flat top sits at cos(30°) of its radius; scale so it reaches the edges.
+  const ry = Math.max(height / 2 - 2, 1) / Math.cos(Math.PI / 6);
   const rx = Math.min(Math.max(width / 2 - 2, 1), ry * MAX_STRETCH);
   return { cx: width / 2, cy: height / 2, rx, ry };
 }
@@ -31,8 +30,7 @@ export function boardBox(width: number, height: number): Box {
 /** Evenly divides a ring, with the first piece centered at the top. */
 export function ringSlots(count: number, ring: Ring): Slot[] {
   const span = TAU / Math.max(count, 1);
-  const r0 = ring === "outer" ? INNER_RADIUS : count === 1 ? 0 : CORE_RADIUS;
-  const r1 = ring === "inner" ? INNER_RADIUS : 1;
+  const [r0, r1] = ring === "inner" ? [0, INNER_RADIUS] : [INNER_RADIUS, 1];
   return Array.from({ length: count }, (_, i) => {
     const a0 = START - span / 2 + i * span;
     return { a0, a1: a0 + span, r0, r1 };
@@ -48,7 +46,7 @@ export function wholeRing(ring: Ring): Slot {
 export function dropTarget(x: number, y: number, box: Box, otherCount: (ring: Ring) => number) {
   const dx = (x - box.cx) / box.rx;
   const dy = (y - box.cy) / box.ry;
-  const ring: Ring = Math.hypot(dx, dy) < INNER_RADIUS ? "inner" : "outer";
+  const ring: Ring = Math.hypot(dx, dy) / hexReach(Math.atan2(dy, dx)) < INNER_RADIUS ? "inner" : "outer";
   const cells = otherCount(ring) + 1;
   const span = TAU / cells;
   const from = START - span / 2;
@@ -56,14 +54,33 @@ export function dropTarget(x: number, y: number, box: Box, otherCount: (ring: Ri
   return { ring, index: Math.min(Math.floor(turned / span), cells - 1) };
 }
 
-function at(box: Box, r: number, a: number): Point {
-  return { x: box.cx + r * box.rx * Math.cos(a), y: box.cy + r * box.ry * Math.sin(a) };
+/** Distance from the center to a flat-topped hexagon at angle `a`, with corners at 1. */
+function hexReach(a: number) {
+  const side = Math.PI / 3;
+  const turned = ((a % side) + side) % side;
+  return Math.cos(side / 2) / Math.cos(turned - side / 2);
 }
 
-function arc(box: Box, r: number, a0: number, a1: number, step: number, closed = false) {
-  const steps = Math.max(1, Math.ceil(Math.abs(a1 - a0) / step));
-  const count = closed ? steps : steps + 1;
-  return Array.from({ length: count }, (_, i) => at(box, r, a0 + ((a1 - a0) * i) / steps));
+function at(box: Box, r: number, a: number): Point {
+  const reach = r * hexReach(a);
+  return { x: box.cx + reach * box.rx * Math.cos(a), y: box.cy + reach * box.ry * Math.sin(a) };
+}
+
+/** Hexagon corners strictly between two angles, in travel order. */
+function cornersBetween(a0: number, a1: number) {
+  const side = Math.PI / 3;
+  const [low, high] = a0 < a1 ? [a0, a1] : [a1, a0];
+  const corners: number[] = [];
+  for (let k = Math.ceil((low + CORNER_SKIP) / side); k * side < high - CORNER_SKIP; k++) {
+    corners.push(k * side);
+  }
+  return a0 < a1 ? corners : corners.reverse();
+}
+
+/** Points along a ring edge. Both rings trace the same hexagon, so they always line up. */
+function arc(box: Box, r: number, a0: number, a1: number, closed = false) {
+  const angles = [a0, ...cornersBetween(a0, a1), ...(closed ? [] : [a1])];
+  return angles.map((a) => at(box, r, a));
 }
 
 function signedArea(points: Point[]) {
@@ -94,16 +111,11 @@ function inset(points: Point[], gap: number): Point[] {
   });
 }
 
-/** A piece's outline, plus which points are its true corners. */
-function outline(slot: Slot, box: Box, step: number) {
+/** A piece's outline. Every point is a corner to round. */
+function outline(slot: Slot, box: Box) {
   const { a0, a1, r0, r1 } = slot;
-  const outer = arc(box, r1, a0, a1, step);
-  if (r0 < 1e-3) {
-    return { points: [at(box, 0, a0), ...outer], corners: [0, 1, outer.length] };
-  }
-  const inner = arc(box, r0, a1, a0, step);
-  const n = outer.length;
-  return { points: [...outer, ...inner], corners: [0, n - 1, n, n + inner.length - 1] };
+  const outer = arc(box, r1, a0, a1);
+  return r0 < 1e-3 ? [at(box, 0, a0), ...outer] : [...outer, ...arc(box, r0, a1, a0)];
 }
 
 function pathLength(points: Point[], from: number, to: number) {
@@ -166,20 +178,19 @@ function roundedPath(points: Point[], corners: number[]) {
   return `${d}Z`;
 }
 
-function smoothLoop(points: Point[]) {
-  return `M${points.map((p) => `${num(p.x)} ${num(p.y)}`).join("L")}Z`;
+function softPath(points: Point[]) {
+  return roundedPath(points, points.map((_, i) => i));
 }
 
 /** SVG path for a slot. A full outer ring has a hole, so use fill-rule="evenodd". */
 export function slotPath(slot: Slot, box: Box) {
   const { a0, a1, r0, r1 } = slot;
   if (a1 - a0 > TAU - 1e-3) {
-    const outer = smoothLoop(inset(arc(box, r1, a0, a1, ARC_STEP, true), GAP));
+    const outer = softPath(inset(arc(box, r1, a0, a1, true), GAP));
     if (r0 < 1e-3) return outer;
-    return outer + smoothLoop(inset(arc(box, r0, a0, a1, ARC_STEP, true), -GAP));
+    return outer + softPath(inset(arc(box, r0, a0, a1, true), -GAP));
   }
-  const { points, corners } = outline(slot, box, ARC_STEP);
-  return roundedPath(inset(points, GAP), corners);
+  return softPath(inset(outline(slot, box), GAP));
 }
 
 function inside(p: Point, polygon: Point[]) {
@@ -190,6 +201,20 @@ function inside(p: Point, polygon: Point[]) {
     if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) hit = !hit;
   }
   return hit;
+}
+
+/** The balance point of a shape. */
+function centroid(points: Point[]): Point {
+  const area = signedArea(points) || 1;
+  let x = 0;
+  let y = 0;
+  points.forEach((p, i) => {
+    const q = points[(i + 1) % points.length];
+    const cross = p.x * q.y - q.x * p.y;
+    x += (p.x + q.x) * cross;
+    y += (p.y + q.y) * cross;
+  });
+  return { x: x / (3 * area), y: y / (3 * area) };
 }
 
 function rectFits(x: number, y: number, w: number, h: number, polygon: Point[]) {
@@ -210,9 +235,11 @@ export function labelBox(slot: Slot, box: Box): Label {
     full && slot.r0 > 1e-3 ? { ...slot, a0: START - Math.PI / 3, a1: START + Math.PI / 3 } : slot;
   const raw =
     full && slot.r0 < 1e-3
-      ? arc(box, slot.r1, slot.a0, slot.a1, LABEL_ARC_STEP, true)
-      : outline(area, box, LABEL_ARC_STEP).points;
+      ? arc(box, slot.r1, slot.a0, slot.a1, true)
+      : outline(area, box);
   const polygon = inset(raw, GAP + LABEL_PADDING);
+  const middle = centroid(polygon);
+  const scale = Math.sqrt(Math.abs(signedArea(polygon)) / 2) || 1;
 
   let best: Label = { ...at(box, (area.r0 + area.r1) / 2, (area.a0 + area.a1) / 2), width: 0, height: 0 };
   let bestArea = 0;
@@ -231,7 +258,9 @@ export function labelBox(slot: Slot, box: Box): Label {
         }
         // Prefer shapes wide enough to hold a line of text.
         const width = low * aspect;
-        const score = low * width * (width >= 110 ? 1 : 0.6);
+        // Text near the middle of the piece looks balanced, so off-center spots score lower.
+        const offCenter = Math.hypot(c.x - middle.x, c.y - middle.y) / scale;
+        const score = low * width * (width >= 110 ? 1 : 0.6) * Math.max(0.2, 1 - offCenter * 1.6);
         if (score > bestArea) {
           bestArea = score;
           best = { x: c.x, y: c.y, width, height: low };
