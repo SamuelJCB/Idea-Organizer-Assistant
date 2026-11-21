@@ -34,7 +34,7 @@ const STEP_LINES = 2;
 const MIN_STEP_WIDTH = 104;
 const TITLE_SIZES: Record<Ring, { max: number; min: number }> = {
   inner: { max: 20, min: 12 },
-  outer: { max: 17, min: 12 },
+  outer: { max: 17, min: 14 },
 };
 /** Conservative average character width and line height, as multiples of font size. */
 const CHAR_WIDTH = 0.56;

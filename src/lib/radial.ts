@@ -4,7 +4,7 @@
  * Radii are fractions of the board (0 = center, 1 = edge).
  */
 
-export const INNER_RADIUS = 0.5;
+export const INNER_RADIUS = 0.62;
 const START = -Math.PI / 2;
 const TAU = Math.PI * 2;
 const MAX_STRETCH = 1.6;
@@ -260,7 +260,7 @@ export function labelBox(slot: Slot, box: Box): Label {
         const width = low * aspect;
         // Text near the middle of the piece looks balanced, so off-center spots score lower.
         const offCenter = Math.hypot(c.x - middle.x, c.y - middle.y) / scale;
-        const score = low * width * (width >= 110 ? 1 : 0.6) * Math.max(0.2, 1 - offCenter * 1.6);
+        const score = low * width * (width >= 110 ? 1 : 0.6) * Math.max(0.2, 1 - offCenter * 1.0);
         if (score > bestArea) {
           bestArea = score;
           best = { x: c.x, y: c.y, width, height: low };
