@@ -20,6 +20,7 @@ import {
   ringSlots,
   slotPath,
   wholeRing,
+  type Label,
   type Ring,
   type Slot,
 } from "@/lib/radial";
@@ -27,7 +28,17 @@ import { nextSteps, type Project } from "@/lib/types";
 
 const DRAG_START_PX = 6;
 const MOVE_MS = 240;
-const INNER_STEPS = 2;
+/** Grey next-step text: one step, wrapped to at most two lines so it stays readable. */
+const STEP_LINE_PX = 16;
+const STEP_LINES = 2;
+const MIN_STEP_WIDTH = 104;
+const TITLE_SIZES: Record<Ring, { max: number; min: number }> = {
+  inner: { max: 20, min: 12 },
+  outer: { max: 17, min: 12 },
+};
+/** Conservative average character width and line height, as multiples of font size. */
+const CHAR_WIDTH = 0.56;
+const LINE_HEIGHT = 1.2;
 
 type Layout = Record<Ring, string[]>;
 type Drag = { id: string; x: number; y: number; ring: Ring; preview: Layout };
@@ -52,6 +63,42 @@ function targetSlots(layout: Layout) {
     });
   }
   return slots;
+}
+
+/** How many lines the title takes at a font size, or null if a word won't fit. */
+function wrappedLines(title: string, fontSize: number, width: number) {
+  const perLine = Math.floor(width / (fontSize * CHAR_WIDTH));
+  let lines = 1;
+  let used = 0;
+  for (const word of title.split(/\s+|(?<=\/)/)) {
+    if (word.length > perLine) return null;
+    if (used && used + 1 + word.length > perLine) {
+      lines++;
+      used = word.length;
+    } else {
+      used += (used ? 1 : 0) + word.length;
+    }
+  }
+  return lines;
+}
+
+/** The largest size at which a title fits its space. */
+function largestSize(title: string, ring: Ring, label: Label) {
+  const { max, min } = TITLE_SIZES[ring];
+  for (let size = max; size > min; size--) {
+    const lines = wrappedLines(title, size, label.width);
+    if (lines && lines * size * LINE_HEIGHT <= label.height) return size;
+  }
+  return min;
+}
+
+/** Line count at the ring's shared size, and whether a next step also fits. */
+function placeText(title: string, size: number, label: Label, hasStep: boolean) {
+  const most = Math.max(1, Math.floor(label.height / (size * LINE_HEIGHT)));
+  const lines = Math.min(wrappedLines(title, size, label.width) ?? most, most);
+  const stepRoom = 4 + STEP_LINES * STEP_LINE_PX;
+  const showStep = hasStep && label.width >= MIN_STEP_WIDTH && lines * size * LINE_HEIGHT + stepRoom <= label.height;
+  return { lines, showStep };
 }
 
 /** Slides pieces to their new places. Written by hand because Safari can't animate SVG paths. */
@@ -117,7 +164,12 @@ export function ProjectBoard({
     return () => observer.disconnect();
   }, []);
 
-  const box = size ? boardBox(size.width, size.height) : null;
+  const box = useMemo(() => (size ? boardBox(size.width, size.height) : null), [size]);
+  // Measured from where pieces are headed, not every animation frame.
+  const labels = useMemo(() => {
+    if (!box) return {};
+    return Object.fromEntries(Object.entries(target).map(([id, slot]) => [id, labelBox(slot, box)]));
+  }, [target, box]);
 
   function pointIn(event: PointerEvent) {
     const rect = rootRef.current!.getBoundingClientRect();
@@ -174,6 +226,16 @@ export function ProjectBoard({
     if (event.key === "Enter") router.push(`/projects/${id}`);
   }
 
+  // One title size per ring, so pieces read as a set.
+  const ringSize = (ring: Ring) => {
+    const sizes = shown[ring].flatMap((id) => {
+      const project = byId.get(id);
+      return project && labels[id] ? [largestSize(project.title, ring, labels[id])] : [];
+    });
+    return sizes.length ? Math.min(...sizes) : TITLE_SIZES[ring].max;
+  };
+  const titleSize: Record<Ring, number> = { inner: ringSize("inner"), outer: ringSize("outer") };
+
   const dragged = drag ? byId.get(drag.id) : null;
   const pieces = [...shown.inner, ...shown.outer];
 
@@ -220,30 +282,46 @@ export function ProjectBoard({
           </svg>
 
           {pieces.map((id) => {
-            const slot = slots[id] ?? target[id];
+            const label = labels[id];
             const project = byId.get(id);
-            if (!slot || !project || drag?.id === id) return null;
-            const label = labelBox(slot, box);
-            const inner = shown.inner.includes(id);
-            const steps = inner && label.height > 78 ? nextSteps(project.next_action).slice(0, INNER_STEPS) : [];
+            if (!label || !project || drag?.id === id) return null;
+            const ring: Ring = shown.inner.includes(id) ? "inner" : "outer";
+            const step = ring === "inner" ? nextSteps(project.next_action)[0] : undefined;
+            const size = titleSize[ring];
+            const text = placeText(project.title, size, label, Boolean(step));
             return (
               <div
                 key={id}
-                className="pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden text-center"
+                className="board-label pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden text-center"
                 style={{ left: label.x, top: label.y, width: label.width, height: label.height }}
               >
                 <h3
-                  className={`line-clamp-2 leading-tight font-semibold tracking-tight ${
-                    inner ? "text-[clamp(0.8rem,1.35vw,1.2rem)]" : "text-[clamp(0.75rem,1.05vw,1rem)]"
-                  }`}
+                  className="w-full font-medium tracking-tight text-balance"
+                  style={{
+                    fontSize: size,
+                    lineHeight: LINE_HEIGHT,
+                    display: "-webkit-box",
+                    WebkitBoxOrient: "vertical",
+                    WebkitLineClamp: text.lines,
+                    overflow: "hidden",
+                  }}
                 >
-                  {project.title}
+                  {project.title.replace(/-/g, "-\u2060").replace(/\//g, "/\u200b")}
                 </h3>
-                {steps.map((step) => (
-                  <p key={step} className="mt-0.5 w-full truncate text-xs text-muted">
+                {text.showStep && (
+                  <p
+                    className="mt-1 w-full text-xs text-muted"
+                    style={{
+                      lineHeight: `${STEP_LINE_PX}px`,
+                      display: "-webkit-box",
+                      WebkitBoxOrient: "vertical",
+                      WebkitLineClamp: STEP_LINES,
+                      overflow: "hidden",
+                    }}
+                  >
                     {step}
                   </p>
-                ))}
+                )}
               </div>
             );
           })}

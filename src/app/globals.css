@@ -88,6 +88,20 @@ body {
   stroke: #fbbf24;
 }
 
+.board-label {
+  transition:
+    left 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    top 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-label {
+    transition: none;
+  }
+}
+
 .board-empty {
   fill: transparent;
   stroke: var(--board-line);
