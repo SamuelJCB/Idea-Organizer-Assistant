@@ -126,7 +126,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-baseline justify-between px-1 pt-1">
         <h2 className="font-semibold tracking-tight">{showDone ? "Recently completed" : "To do"}</h2>
-        {!showDone && <span className="text-xs text-muted">{open.length} open</span>}
+        {!showDone && <span className="text-xs text-muted">{open.length}</span>}
       </div>
 
       {/* The date row only appears while typing a to-do, to keep the panel clean. */}
