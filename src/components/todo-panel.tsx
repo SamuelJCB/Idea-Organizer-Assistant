@@ -142,7 +142,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
           autoComplete="off"
           enterKeyHint="done"
           placeholder="Add a to-do…"
-          className="w-full rounded-2xl border border-piece-corner/60 bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-piece-inner/40"
+          className="w-full rounded-2xl bg-surface px-4 py-3 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/20"
         />
         <div className="hidden items-center gap-2 group-focus-within:flex">
           <label htmlFor="todo-due" className="text-xs text-muted">
@@ -156,7 +156,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
           />
           <button
             type="submit"
-            className="rounded-lg bg-piece-inner px-3 py-1 text-xs font-medium text-piece-inner-text"
+            className="rounded-lg bg-accent px-3 py-1 text-xs font-medium text-accent-foreground"
           >
             Add
           </button>
@@ -187,8 +187,8 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
                 }
                 className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 text-xs ${
                   todo.done
-                    ? "border-piece-inner bg-piece-inner text-piece-inner-text"
-                    : "border-piece-corner"
+                    ? "border-emerald-500 bg-emerald-500 text-white"
+                    : "border-stone-300 dark:border-stone-600"
                 }`}
               >
                 {todo.done && "✓"}

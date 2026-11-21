@@ -15,10 +15,11 @@ import {
 import { moveProject } from "@/app/actions";
 import {
   boardBox,
+  cornerSlot,
   dropTarget,
   emptyCorners,
   labelBox,
-  MAX_CORNER_PIECES,
+  MAX_PER_CORNER,
   ringSlots,
   slotPath,
   wholeRing,
@@ -40,41 +41,82 @@ const TITLE_SIZES: Record<Ring, { max: number; min: number }> = {
   outer: { max: 17, min: 14 },
   corner: { max: 14, min: 11 },
 };
-const RINGS: readonly Ring[] = ["inner", "outer", "corner"];
+/** Saved in the order list just before each corner's projects, so corners keep their place. */
+const CORNER_MARKS = [0, 1, 2, 3].map((n) => `00000000-0000-4000-8000-c0000000000${n}`);
 /** Conservative average character width and line height, as multiples of font size. */
 const CHAR_WIDTH = 0.56;
 const LINE_HEIGHT = 1.2;
 
-type Layout = Record<Ring, string[]>;
+/** `corners` has four lists: top-left, top-right, bottom-right, bottom-left. */
+type Layout = { inner: string[]; outer: string[]; corners: string[][] };
 type Drag = { id: string; x: number; y: number; ring: Ring; preview: Layout };
 type Press = { id: string; x: number; y: number };
 
 function initialLayout(projects: Project[], order: string[]): Layout {
   const rank = new Map(order.map((id, i) => [id, i]));
+  const savedCorner = new Map<string, number>();
+  let current = -1;
+  for (const id of order) {
+    const mark = CORNER_MARKS.indexOf(id);
+    if (mark >= 0) current = mark;
+    else if (current >= 0) savedCorner.set(id, current);
+  }
+
+  // Saved position first, then oldest first, so an edit never reshuffles the board.
   const position = (p: Project) => rank.get(p.id) ?? Number.MAX_SAFE_INTEGER;
-  const sorted = [...projects].sort((a, b) => position(a) - position(b));
-  // Raw ideas live in the corners; any beyond the corners' capacity join the outer ring.
-  const raw = sorted.filter((p) => p.status === "raw").map((p) => p.id);
-  const corner = raw.slice(0, MAX_CORNER_PIECES);
+  const sorted = [...projects].sort(
+    (a, b) => position(a) - position(b) || a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
+  );
+
+  // Raw ideas live in the corners; any beyond their capacity join the outer ring.
+  const corners: string[][] = [[], [], [], []];
+  const raw = sorted.filter((p) => p.status === "raw");
+  const unplaced = raw.filter((p) => {
+    const corner = savedCorner.get(p.id);
+    if (corner === undefined || corners[corner].length >= MAX_PER_CORNER) return true;
+    corners[corner].push(p.id);
+    return false;
+  });
+  for (const p of unplaced) {
+    const roomiest = corners.reduce((best, ids, i) => (ids.length < corners[best].length ? i : best), 0);
+    if (corners[roomiest].length < MAX_PER_CORNER) corners[roomiest].push(p.id);
+  }
+
+  const inCorner = new Set(corners.flat());
   return {
     inner: sorted.filter((p) => p.status === "active").map((p) => p.id),
-    outer: sorted.filter((p) => p.status !== "active" && !corner.includes(p.id)).map((p) => p.id),
-    corner,
+    outer: sorted.filter((p) => p.status !== "active" && !inCorner.has(p.id)).map((p) => p.id),
+    corners,
   };
 }
 
+function ringIds(layout: Layout, ring: Ring) {
+  return ring === "corner" ? layout.corners.flat() : layout[ring];
+}
+
 function ringOf(layout: Layout, id: string): Ring {
-  return layout.inner.includes(id) ? "inner" : layout.corner.includes(id) ? "corner" : "outer";
+  if (layout.inner.includes(id)) return "inner";
+  return layout.corners.some((ids) => ids.includes(id)) ? "corner" : "outer";
+}
+
+/** The list saved to the database, with markers recording each corner. */
+function savedOrder(layout: Layout) {
+  return [...layout.inner, ...layout.outer, ...layout.corners.flatMap((ids, i) => [CORNER_MARKS[i], ...ids])];
 }
 
 function targetSlots(layout: Layout) {
   const slots: Record<string, Slot> = {};
-  for (const ring of RINGS) {
+  for (const ring of ["inner", "outer"] as const) {
     const ringPieces = ringSlots(layout[ring].length, ring);
     layout[ring].forEach((id, i) => {
       slots[id] = ringPieces[i];
     });
   }
+  layout.corners.forEach((ids, corner) => {
+    ids.forEach((id, part) => {
+      slots[id] = cornerSlot(corner, part, ids.length);
+    });
+  });
   return slots;
 }
 
@@ -210,11 +252,16 @@ export function ProjectBoard({
     const others: Layout = {
       inner: layout.inner.filter((p) => p !== id),
       outer: layout.outer.filter((p) => p !== id),
-      corner: layout.corner.filter((p) => p !== id),
+      corners: layout.corners.map((ids) => ids.filter((p) => p !== id)),
     };
-    const { ring, index } = dropTarget(x, y, box!, (r) => others[r].length);
-    const preview = { ...others, [ring]: others[ring].toSpliced(index, 0, id) };
-    return { ring, preview };
+    const drop = dropTarget(x, y, box!, (r) => others[r].length, others.corners.map((ids) => ids.length));
+    // Over a full corner: the piece stays where it was instead of landing somewhere else.
+    if (!drop) return { ring: ringOf(layout, id), preview: layout };
+    if (drop.ring === "corner") {
+      const corners = others.corners.map((ids, i) => (i === drop.index ? ids.toSpliced(drop.part, 0, id) : ids));
+      return { ring: drop.ring, preview: { ...others, corners } };
+    }
+    return { ring: drop.ring, preview: { ...others, [drop.ring]: others[drop.ring].toSpliced(drop.index, 0, id) } };
   }
 
   function onPointerDown(event: PointerEvent<SVGPathElement>, id: string) {
@@ -244,7 +291,7 @@ export function ProjectBoard({
     if (JSON.stringify(next) === JSON.stringify(layout)) return;
     startTransition(async () => {
       setLayout(next);
-      await moveProject(drag.id, drag.ring, [...next.inner, ...next.outer, ...next.corner]);
+      await moveProject(drag.id, drag.ring, savedOrder(next));
     });
   }
 
@@ -267,7 +314,7 @@ export function ProjectBoard({
 
   // One title size per ring, so pieces read as a set.
   const ringSize = (ring: Ring) => {
-    const sizes = shown[ring].flatMap((id) => {
+    const sizes = ringIds(shown, ring).flatMap((id) => {
       const project = byId.get(id);
       if (!project || !labels[id]) return [];
       const reserve = ring === "inner" && innerStepsFit && nextSteps(project.next_action).length ? STEP_ROOM : 0;
@@ -282,7 +329,8 @@ export function ProjectBoard({
   };
 
   const dragged = drag ? byId.get(drag.id) : null;
-  const pieces = [...shown.inner, ...shown.outer, ...shown.corner];
+  const pieces = [...shown.inner, ...shown.outer, ...shown.corners.flat()];
+  const heldCorner = drag ? target[drag.id]?.corner?.index : undefined;
 
   return (
     <div ref={rootRef} className={`relative h-full w-full select-none ${drag ? "cursor-grabbing" : ""}`}>
@@ -295,11 +343,11 @@ export function ProjectBoard({
                   <path key={ring} d={slotPath(wholeRing(ring), box)} fillRule="evenodd" className="board-empty" />
                 ),
             )}
-            {emptyCorners(shown.corner.length).map((slot) => (
+            {emptyCorners(shown.corners.map((ids) => ids.length)).map((slot) => (
               <path
                 key={`corner-${slot.corner?.index}`}
                 d={slotPath(slot, box)}
-                className={`board-corner-empty ${drag?.ring === "corner" ? "board-corner-target" : ""}`}
+                className={`board-corner-empty ${drag ? "board-corner-target" : ""}`}
               />
             ))}
             {/* A fixed DOM order: moving the held element would make the browser drop the drag. */}
@@ -310,10 +358,10 @@ export function ProjectBoard({
               const ring = ringOf(shown, id);
               const classes = [
                 "board-piece",
-                ring === "inner" ? "board-piece-inner" : "",
-                ring === "corner" ? "board-piece-corner" : "",
                 drag?.id === id ? "board-piece-held" : "",
-                drag?.ring === ring ? "board-piece-target" : "",
+                (ring === "corner" ? slot.corner?.index === heldCorner : drag?.ring === ring)
+                  ? "board-piece-target"
+                  : "",
                 stale.has(id) ? "board-piece-stale" : "",
               ];
               return (
@@ -347,9 +395,7 @@ export function ProjectBoard({
             return (
               <div
                 key={id}
-                className={`board-label pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden text-center ${
-                  ring === "corner" ? "text-piece-corner-text" : "text-piece-inner-text"
-                }`}
+                className="board-label pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden text-center text-foreground"
                 style={{ left: label.x, top: label.y, width: label.width, height: label.height }}
               >
                 <h3
@@ -367,7 +413,7 @@ export function ProjectBoard({
                 </h3>
                 {text.showStep && (
                   <p
-                    className="mt-1 w-full text-xs text-piece-inner-muted"
+                    className="mt-1 w-full text-xs text-muted"
                     style={{
                       lineHeight: `${STEP_LINE_PX}px`,
                       display: "-webkit-box",
@@ -385,7 +431,7 @@ export function ProjectBoard({
 
           {dragged && drag && (
             <div
-              className="pointer-events-none absolute z-10 max-w-48 -translate-x-1/2 -translate-y-1/2 truncate rounded-lg bg-board-held px-3 py-1.5 text-sm font-medium text-stone-900 shadow-lg"
+              className="pointer-events-none absolute z-10 max-w-48 -translate-x-1/2 -translate-y-1/2 truncate rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground shadow-lg"
               style={{ left: drag.x, top: drag.y }}
             >
               {dragged.title}

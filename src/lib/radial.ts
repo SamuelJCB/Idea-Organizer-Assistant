@@ -14,8 +14,8 @@ const CORNER = 34;
 const CORNER_SKIP = 0.04;
 const LABEL_PADDING = 14;
 const CORNER_LABEL_PADDING = 5;
-/** Four corner triangles of the board, each split into at most two pieces. */
-export const MAX_CORNER_PIECES = 8;
+/** Each of the board's four corner triangles splits into at most two pieces. */
+export const MAX_PER_CORNER = 2;
 
 export type Ring = "inner" | "outer" | "corner";
 /** Corner pieces are triangles outside the hexagon, so `corner` replaces the polar values. */
@@ -38,14 +38,7 @@ export function boardBox(width: number, height: number): Box {
 }
 
 /** Evenly divides a ring, with the first piece centered at the top. */
-export function ringSlots(count: number, ring: Ring): Slot[] {
-  if (ring === "corner") {
-    const total = Math.min(count, MAX_CORNER_PIECES);
-    return [0, 1, 2, 3].flatMap((index) => {
-      const parts = Math.floor(total / 4) + (index < total % 4 ? 1 : 0);
-      return Array.from({ length: parts }, (_, part) => cornerSlot(index, part, parts));
-    });
-  }
+export function ringSlots(count: number, ring: Exclude<Ring, "corner">): Slot[] {
   const span = TAU / Math.max(count, 1);
   const [r0, r1] = ring === "inner" ? [0, INNER_RADIUS] : [INNER_RADIUS, 1];
   return Array.from({ length: count }, (_, i) => {
@@ -54,7 +47,7 @@ export function ringSlots(count: number, ring: Ring): Slot[] {
   });
 }
 
-function cornerSlot(index: number, part: number, parts: number): Slot {
+export function cornerSlot(index: number, part: number, parts: number): Slot {
   return { a0: 0, a1: 0, r0: 1, r1: 1, corner: { index, part, parts } };
 }
 
@@ -64,9 +57,8 @@ export function wholeRing(ring: Exclude<Ring, "corner">): Slot {
 }
 
 /** Corner triangles with no project in them. */
-export function emptyCorners(count: number): Slot[] {
-  const used = new Set(ringSlots(count, "corner").map((slot) => slot.corner?.index));
-  return [0, 1, 2, 3].filter((index) => !used.has(index)).map((index) => cornerSlot(index, 0, 1));
+export function emptyCorners(counts: number[]): Slot[] {
+  return [0, 1, 2, 3].filter((index) => !counts[index]).map((index) => cornerSlot(index, 0, 1));
 }
 
 /** A corner piece's triangle: top-left, top-right, bottom-right, bottom-left. */
@@ -83,21 +75,34 @@ function cornerPoints(slot: Slot, box: Box): Point[] {
   return part === 0 ? [top, middle, tip] : [middle, side, tip];
 }
 
-/** Which ring a point is over, and where a new piece would be inserted. */
-export function dropTarget(x: number, y: number, box: Box, otherCount: (ring: Ring) => number) {
+export type Drop =
+  | { ring: "inner" | "outer"; index: number }
+  | { ring: "corner"; index: number; part: number };
+
+/**
+ * Where a piece would land. Corners are exact: a point over a corner lands in
+ * that corner, or nowhere (null) if that corner is already full.
+ */
+export function dropTarget(
+  x: number,
+  y: number,
+  box: Box,
+  otherCount: (ring: "inner" | "outer") => number,
+  cornerCounts: number[],
+): Drop | null {
   const dx = (x - box.cx) / box.rx;
   const dy = (y - box.cy) / box.ry;
   const reach = Math.hypot(dx, dy) / hexReach(Math.atan2(dy, dx));
-  if (reach >= 1 && otherCount("corner") < MAX_CORNER_PIECES) {
-    const options = ringSlots(otherCount("corner") + 1, "corner");
-    const distance = (slot: Slot) => {
-      const c = centroid(cornerPoints(slot, box));
+  if (reach >= 1) {
+    const index = dy < 0 ? (dx < 0 ? 0 : 1) : dx < 0 ? 3 : 2;
+    if (cornerCounts[index] >= MAX_PER_CORNER) return null;
+    const distance = (part: number) => {
+      const c = centroid(cornerPoints(cornerSlot(index, part, 2), box));
       return Math.hypot(c.x - x, c.y - y);
     };
-    const index = options.reduce((best, slot, i) => (distance(slot) < distance(options[best]) ? i : best), 0);
-    return { ring: "corner" as Ring, index };
+    return { ring: "corner", index, part: distance(0) <= distance(1) ? 0 : 1 };
   }
-  const ring: Ring = reach < INNER_RADIUS ? "inner" : "outer";
+  const ring = reach < INNER_RADIUS ? "inner" : "outer";
   const cells = otherCount(ring) + 1;
   const span = TAU / cells;
   const from = START - span / 2;
