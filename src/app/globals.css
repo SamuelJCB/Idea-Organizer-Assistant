@@ -8,10 +8,16 @@
   --border: #e7e5e4;
   --accent: #1c1917;
   --accent-foreground: #fafaf9;
-  --board-line: #d6d3d1;
-  --board-target: #e0f2fe;
-  --board-held: #bae6fd;
-  --board-held-line: #38bdf8;
+  --board-line: #8fb0a6;
+  --piece-inner: #2f5d57;
+  --piece-inner-target: #3f7a70;
+  --piece-inner-text: #ffffff;
+  --piece-inner-muted: #c9ddd7;
+  --piece-outer: #cfe0da;
+  --piece-outer-target: #b4d1c7;
+  --piece-outer-muted: #4a5c56;
+  --board-held: #f0b48a;
+  --board-held-line: #d97b3f;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,10 +29,13 @@
     --border: #292524;
     --accent: #f5f5f4;
     --accent-foreground: #1c1917;
-    --board-line: #57534e;
-    --board-target: #0c3a52;
-    --board-held: #075985;
-    --board-held-line: #38bdf8;
+    --board-line: #5f8379;
+    --piece-inner: #2f7568;
+    --piece-inner-target: #3a8a7b;
+    --piece-inner-muted: #d3e6e0;
+    --piece-outer: #1f2e2b;
+    --piece-outer-target: #2a403b;
+    --piece-outer-muted: #a9bdb7;
   }
 }
 
@@ -38,6 +47,12 @@
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-piece-inner: var(--piece-inner);
+  --color-piece-inner-text: var(--piece-inner-text);
+  --color-piece-inner-muted: var(--piece-inner-muted);
+  --color-piece-outer: var(--piece-outer);
+  --color-piece-outer-muted: var(--piece-outer-muted);
+  --color-board-held: var(--board-held);
   --font-sans: var(--font-geist-sans);
 }
 
@@ -61,7 +76,7 @@ body {
 
 /* Dashboard board: one shape cut into pieces (see ProjectBoard). */
 .board-piece {
-  fill: var(--surface);
+  fill: var(--piece-outer);
   stroke: transparent;
   stroke-width: 2;
   cursor: grab;
@@ -75,11 +90,19 @@ body {
   stroke: var(--board-line);
 }
 
-.board-piece-target {
-  fill: var(--board-target);
+.board-piece-inner {
+  fill: var(--piece-inner);
 }
 
-.board-piece-held {
+.board-piece-target {
+  fill: var(--piece-outer-target);
+}
+
+.board-piece-inner.board-piece-target {
+  fill: var(--piece-inner-target);
+}
+
+.board-piece.board-piece-held {
   fill: var(--board-held);
   stroke: var(--board-held-line);
 }

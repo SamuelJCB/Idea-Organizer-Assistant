@@ -70,13 +70,15 @@ function dueLabel(due: string, today: string): { text: string; tone: string } {
   const dueDate = parseDay(due);
   const days = Math.round((dueDate.getTime() - parseDay(today).getTime()) / 86_400_000);
 
-  if (days < 0) return { text: "Overdue", tone: "text-red-600 dark:text-red-400 font-medium" };
-  if (days === 0) return { text: "Today", tone: "text-amber-600 dark:text-amber-400 font-medium" };
+  if (days < 0) return { text: "Overdue", tone: "text-red-800 dark:text-red-300 font-medium" };
+  if (days === 0) return { text: "Today", tone: "text-amber-800 dark:text-amber-300 font-medium" };
   if (days === 1) return { text: "Tomorrow", tone: "text-foreground" };
-  if (days < 7) return { text: dueDate.toLocaleDateString(undefined, { weekday: "short" }), tone: "text-muted" };
+  if (days < 7) {
+    return { text: dueDate.toLocaleDateString(undefined, { weekday: "short" }), tone: "text-piece-outer-muted" };
+  }
   return {
     text: dueDate.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-    tone: "text-muted",
+    tone: "text-piece-outer-muted",
   };
 }
 
@@ -121,14 +123,14 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-2xl bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04),0_2px_8px_rgb(0_0_0/0.04)]">
-      <div className="flex items-baseline justify-between px-4 pt-4">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-baseline justify-between px-1 pt-1">
         <h2 className="font-semibold tracking-tight">{showDone ? "Recently completed" : "To do"}</h2>
         {!showDone && <span className="text-xs text-muted">{open.length} open</span>}
       </div>
 
       {/* The date row only appears while typing a to-do, to keep the panel clean. */}
-      <form ref={formRef} action={add} className="group flex flex-col gap-2 px-4 pt-3 pb-3">
+      <form ref={formRef} action={add} className="group flex flex-col gap-2 pt-3 pb-2.5">
         <label htmlFor="todo-body" className="sr-only">
           New to-do
         </label>
@@ -140,7 +142,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
           autoComplete="off"
           enterKeyHint="done"
           placeholder="Add a to-do…"
-          className="w-full rounded-lg bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/20"
+          className="w-full rounded-2xl bg-surface px-4 py-3 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-piece-inner/40"
         />
         <div className="hidden items-center gap-2 group-focus-within:flex">
           <label htmlFor="todo-due" className="text-xs text-muted">
@@ -150,15 +152,18 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
             id="todo-due"
             name="due_date"
             type="date"
-            className="min-w-0 flex-1 rounded-md bg-background px-2 py-1 text-xs text-foreground"
+            className="min-w-0 flex-1 rounded-lg bg-surface px-2 py-1 text-xs text-foreground"
           />
-          <button type="submit" className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-accent-foreground">
+          <button
+            type="submit"
+            className="rounded-lg bg-piece-inner px-3 py-1 text-xs font-medium text-piece-inner-text"
+          >
             Add
           </button>
         </div>
       </form>
 
-      <ul className="min-h-0 flex-1 overflow-y-auto">
+      <ul className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto">
         {visible.length === 0 && (
           <li className="px-4 py-6 text-center text-sm text-muted">
             {showDone ? "Nothing completed yet." : "Nothing to do. Nice."}
@@ -168,7 +173,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
           const due = todo.due_date && !todo.done && today ? dueLabel(todo.due_date, today) : null;
           const pending = todo.id.startsWith("pending-");
           return (
-            <li key={todo.id} className="group flex items-start gap-3 px-4 py-2">
+            <li key={todo.id} className="group flex shrink-0 items-start gap-3 rounded-2xl bg-piece-outer px-4 py-3">
               <button
                 type="button"
                 role="checkbox"
@@ -182,14 +187,14 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
                 }
                 className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 text-xs ${
                   todo.done
-                    ? "border-emerald-500 bg-emerald-500 text-white"
-                    : "border-stone-300 dark:border-stone-600"
+                    ? "border-piece-inner bg-piece-inner text-piece-inner-text"
+                    : "border-piece-outer-muted/60"
                 }`}
               >
                 {todo.done && "✓"}
               </button>
               <div className="min-w-0 flex-1">
-                <p className={`text-sm leading-snug break-words ${todo.done ? "text-muted" : ""}`}>
+                <p className={`text-sm leading-snug break-words ${todo.done ? "text-piece-outer-muted" : ""}`}>
                   {todo.body}
                 </p>
                 {due && (
@@ -203,7 +208,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
                 aria-label={`Delete "${todo.body}"`}
                 disabled={pending}
                 onClick={() => run({ type: "delete", id: todo.id }, () => deleteTodo(todo.id))}
-                className="shrink-0 px-1 text-lg leading-none text-muted opacity-60 hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100"
+                className="shrink-0 px-1 text-lg leading-none text-piece-outer-muted opacity-60 hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100"
               >
                 ×
               </button>
@@ -213,7 +218,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
       </ul>
 
       {(showDone || done.length > 0) && (
-        <div className="px-4 py-2.5">
+        <div className="px-1 pt-2.5">
           <button
             type="button"
             onClick={() => setShowDone(!showDone)}

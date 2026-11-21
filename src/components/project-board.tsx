@@ -264,6 +264,7 @@ export function ProjectBoard({
               const ring: Ring = shown.inner.includes(id) ? "inner" : "outer";
               const classes = [
                 "board-piece",
+                ring === "inner" ? "board-piece-inner" : "",
                 drag?.id === id ? "board-piece-held" : "",
                 drag?.ring === ring ? "board-piece-target" : "",
                 stale.has(id) ? "board-piece-stale" : "",
@@ -299,7 +300,9 @@ export function ProjectBoard({
             return (
               <div
                 key={id}
-                className="board-label pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden text-center"
+                className={`board-label pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden text-center ${
+                  ring === "inner" ? "text-piece-inner-text" : "text-foreground"
+                }`}
                 style={{ left: label.x, top: label.y, width: label.width, height: label.height }}
               >
                 <h3
@@ -317,7 +320,7 @@ export function ProjectBoard({
                 </h3>
                 {text.showStep && (
                   <p
-                    className="mt-1 w-full text-xs text-muted"
+                    className="mt-1 w-full text-xs text-piece-inner-muted"
                     style={{
                       lineHeight: `${STEP_LINE_PX}px`,
                       display: "-webkit-box",
@@ -335,7 +338,7 @@ export function ProjectBoard({
 
           {dragged && drag && (
             <div
-              className="pointer-events-none absolute z-10 max-w-48 -translate-x-1/2 -translate-y-1/2 truncate rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground shadow-lg"
+              className="pointer-events-none absolute z-10 max-w-48 -translate-x-1/2 -translate-y-1/2 truncate rounded-lg bg-board-held px-3 py-1.5 text-sm font-medium text-stone-900 shadow-lg"
               style={{ left: drag.x, top: drag.y }}
             >
               {dragged.title}
