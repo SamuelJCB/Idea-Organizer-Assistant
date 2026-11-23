@@ -301,7 +301,7 @@ export function labelBox(
   slot: Slot,
   box: Box,
   minWidth = 110,
-  textFits: (width: number, height: number) => boolean = () => true,
+  textSize: (width: number, height: number) => number = () => 1,
 ): Label {
   const full = !slot.corner && slot.a1 - slot.a0 > TAU - 1e-3;
   // A full outer ring has a hole, so its text uses the top section.
@@ -320,12 +320,16 @@ export function labelBox(
   // Center-ring text sits on the piece's balance point whenever it fits there.
   if (slot.r0 < 1e-3 && !full) {
     let centered: Label | null = null;
+    let centeredSize = 0;
     for (const aspect of [3, 2.7, 2.4, 2.2, 2, 1.8, 1.6, 1.45, 1.3, 1.1]) {
       const height = tallestAt(middle, aspect, polygon, limit);
       const width = height * aspect;
-      if (width < minWidth || !textFits(width, height)) continue;
-      if (!centered || width * height > centered.width * centered.height) {
+      const size = width < minWidth ? 0 : textSize(width, height);
+      if (!size) continue;
+      // The shape that allows the largest title wins; ties go to the wider one, for fewer lines.
+      if (!centered || size > centeredSize || (size === centeredSize && width > centered.width)) {
         centered = { x: middle.x, y: middle.y, width, height };
+        centeredSize = size;
       }
     }
     if (centered) return centered;

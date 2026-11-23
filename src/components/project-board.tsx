@@ -33,11 +33,13 @@ const DRAG_START_PX = 6;
 const MOVE_MS = 240;
 /** Grey next-step text: one step, wrapped to at most two lines so it stays readable. */
 const STEP_LINE_PX = 16;
-const STEP_LINES = 2;
-const STEP_ROOM = 4 + STEP_LINES * STEP_LINE_PX;
+const stepRoom = (lines: number) => (lines ? 4 + lines * STEP_LINE_PX : 0);
 const MIN_STEP_WIDTH = 104;
+/** Center titles aim to be this many px larger than middle-ring titles. */
+const INNER_TITLE_LEAD = 2;
+const SMALLEST_OUTER_TITLE = 11;
 const TITLE_SIZES: Record<Ring, { max: number; min: number }> = {
-  inner: { max: 20, min: 12 },
+  inner: { max: 19, min: 12 },
   outer: { max: 17, min: 14 },
   corner: { max: 14, min: 11 },
 };
@@ -155,10 +157,14 @@ function minLabelWidth(title: string, ring: Ring) {
 }
 
 /** Line count at the ring's shared size, and whether a next step also fits. */
-function placeText(title: string, size: number, label: Label, hasStep: boolean) {
+function placeText(title: string, size: number, label: Label, hasStep: boolean, stepLines: number) {
   const most = Math.max(1, Math.floor(label.height / (size * LINE_HEIGHT)));
   const lines = Math.min(wrappedLines(title, size, label.width) ?? most, most);
-  const showStep = hasStep && label.width >= MIN_STEP_WIDTH && lines * size * LINE_HEIGHT + STEP_ROOM <= label.height;
+  const showStep =
+    hasStep &&
+    stepLines > 0 &&
+    label.width >= MIN_STEP_WIDTH &&
+    lines * size * LINE_HEIGHT + stepRoom(stepLines) <= label.height;
   return { lines, showStep };
 }
 
@@ -239,11 +245,10 @@ export function ProjectBoard({
         const project = byId.get(id);
         const title = project?.title ?? "";
         const ring: Ring = slot.corner ? "corner" : slot.r0 < 1e-3 ? "inner" : "outer";
-        const reserve = nextSteps(project?.next_action ?? null).length ? STEP_ROOM : 0;
-        const textFits = (width: number, height: number) =>
-          width >= (reserve ? MIN_STEP_WIDTH : 0) &&
-          largestSize(title, ring, { x: 0, y: 0, width, height }, reserve) !== null;
-        return [id, labelBox(slot, box, minLabelWidth(title, ring), textFits)];
+        const reserve = nextSteps(project?.next_action ?? null).length ? stepRoom(1) : 0;
+        const textSize = (width: number, height: number) =>
+          reserve && width < MIN_STEP_WIDTH ? 0 : (largestSize(title, ring, { x: 0, y: 0, width, height }, reserve) ?? 0);
+        return [id, labelBox(slot, box, minLabelWidth(title, ring), textSize)];
       }),
     );
   }, [target, box, byId]);
@@ -309,28 +314,44 @@ export function ProjectBoard({
     if (event.key === "Enter") router.push(`/projects/${id}`);
   }
 
-  // Next steps show on every inner piece or none, so the ring stays even.
-  // Titles shrink to make room, but only when that lets every piece show its step.
-  const innerStepsFit = shown.inner.every((id) => {
-    const project = byId.get(id);
-    if (!project || !labels[id] || !nextSteps(project.next_action).length) return true;
-    return labels[id].width >= MIN_STEP_WIDTH && largestSize(project.title, "inner", labels[id], STEP_ROOM) !== null;
-  });
-
   // One title size per ring, so pieces read as a set.
   const ringSize = (ring: Ring) => {
     const sizes = ringIds(shown, ring).flatMap((id) => {
       const project = byId.get(id);
       if (!project || !labels[id]) return [];
-      const reserve = ring === "inner" && innerStepsFit && nextSteps(project.next_action).length ? STEP_ROOM : 0;
-      return [largestSize(project.title, ring, labels[id], reserve) ?? TITLE_SIZES[ring].min];
+      return [largestSize(project.title, ring, labels[id]) ?? TITLE_SIZES[ring].min];
     });
     return sizes.length ? Math.min(...sizes) : TITLE_SIZES[ring].max;
   };
+
+  // The center title size if every piece also shows a next step of `lines` lines, or null.
+  const innerSizeWith = (lines: number) => {
+    let smallest: number = TITLE_SIZES.inner.max;
+    for (const id of shown.inner) {
+      const project = byId.get(id);
+      if (!project || !labels[id]) continue;
+      const hasStep = lines > 0 && nextSteps(project.next_action).length > 0;
+      if (hasStep && labels[id].width < MIN_STEP_WIDTH) return null;
+      const size = largestSize(project.title, "inner", labels[id], hasStep ? stepRoom(lines) : 0);
+      if (size === null) return null;
+      smallest = Math.min(smallest, size);
+    }
+    return smallest;
+  };
+
+  // Next steps show on every center piece or none, and shorten to keep the title large.
+  const outerFit = ringSize("outer");
+  const innerGoal = outerFit + INNER_TITLE_LEAD;
+  const withTwo = innerSizeWith(2);
+  const withOne = innerSizeWith(1);
+  const stepLines = withTwo !== null && withTwo >= innerGoal ? 2 : withOne !== null ? 1 : 0;
+  const innerFit = (stepLines === 2 ? withTwo : stepLines === 1 ? withOne : innerSizeWith(0)) ?? TITLE_SIZES.inner.min;
+  const innerTitle = Math.min(innerFit, innerGoal);
+  const outerTitle = Math.min(outerFit, Math.max(innerTitle - 1, SMALLEST_OUTER_TITLE));
   const titleSize: Record<Ring, number> = {
-    inner: ringSize("inner"),
-    outer: ringSize("outer"),
-    corner: ringSize("corner"),
+    inner: innerTitle,
+    outer: outerTitle,
+    corner: Math.min(ringSize("corner"), outerTitle),
   };
 
   const dragged = drag ? byId.get(drag.id) : null;
@@ -395,9 +416,9 @@ export function ProjectBoard({
             const project = byId.get(id);
             if (!label || !project || drag?.id === id) return null;
             const ring = ringOf(shown, id);
-            const step = ring === "inner" && innerStepsFit ? nextSteps(project.next_action)[0] : undefined;
+            const step = ring === "inner" && stepLines > 0 ? nextSteps(project.next_action)[0] : undefined;
             const size = titleSize[ring];
-            const text = placeText(project.title, size, label, Boolean(step));
+            const text = placeText(project.title, size, label, Boolean(step), stepLines);
             return (
               <div
                 key={id}
@@ -424,7 +445,7 @@ export function ProjectBoard({
                       lineHeight: `${STEP_LINE_PX}px`,
                       display: "-webkit-box",
                       WebkitBoxOrient: "vertical",
-                      WebkitLineClamp: STEP_LINES,
+                      WebkitLineClamp: stepLines,
                       overflow: "hidden",
                     }}
                   >
