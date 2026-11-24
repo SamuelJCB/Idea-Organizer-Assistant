@@ -11,7 +11,7 @@ import { isStale } from "@/lib/time";
 
 export default function Dashboard({ searchParams }: PageProps<"/">) {
   return (
-    <main className="flex h-dvh flex-col overflow-hidden px-4 lg:px-6">
+    <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 lg:px-6">
       <header className="flex items-center justify-between pt-[max(1rem,env(safe-area-inset-top))] pb-4">
         <h1 className="text-lg font-semibold tracking-tight text-muted">Nova</h1>
         <div className="flex items-center gap-4">
@@ -66,7 +66,7 @@ async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchPa
             <ProjectBoard projects={projects} order={order} staleIds={staleIds} />
           </div>
         ) : (
-          <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto">
+          <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
             {projects.map((p) => (
               <li key={p.id}>
                 <Link

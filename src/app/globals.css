@@ -32,6 +32,16 @@
   --font-sans: var(--font-geist-sans);
 }
 
+/* The window never moves or zooms. Only marked areas inside it scroll. */
+html,
+body {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: pan-y;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
+import { LockZoom } from "@/components/lock-zoom";
 import { RegisterServiceWorker } from "@/components/register-sw";
 
 const geistSans = Geist({
@@ -18,6 +19,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
   themeColor: "#efeeeb",
   colorScheme: "only light",
@@ -26,7 +29,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col font-sans">{children}
+      <body className="flex h-full flex-col font-sans">
+        {/* Longer pages, like a project's details, scroll here. The home screen fits exactly. */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">{children}</div>
+        <LockZoom />
         <RegisterServiceWorker />
       </body>
     </html>

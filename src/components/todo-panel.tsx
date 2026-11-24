@@ -163,7 +163,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
         </div>
       </form>
 
-      <ul className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto">
+      <ul className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain">
         {visible.length === 0 && (
           <li className="px-4 py-6 text-center text-sm text-muted">
             {showDone ? "Nothing completed yet." : "Nothing to do. Nice."}
