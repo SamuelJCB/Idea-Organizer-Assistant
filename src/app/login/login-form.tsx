@@ -32,7 +32,7 @@ export function LoginForm({ linkFailed }: { linkFailed: boolean }) {
           {verifying ? "Checking…" : "Sign in"}
         </button>
         {checked && !checked.ok && (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          <p role="alert" className="text-sm text-red-600">
             {checked.message}
           </p>
         )}
@@ -60,12 +60,12 @@ export function LoginForm({ linkFailed }: { linkFailed: boolean }) {
         {sending ? "Sending…" : "Email me a code"}
       </button>
       {sent && !sent.ok && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-600">
           {sent.message}
         </p>
       )}
       {!sent && linkFailed && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-600">
           That sign-in link didn&apos;t work (it may have expired or been opened in a different
           browser). Send a new code.
         </p>

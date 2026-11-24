@@ -58,7 +58,7 @@ async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchPa
       todos={<TodoPanel todos={todos} />}
       grid={
         projects.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-stone-300 p-6 text-center text-sm text-muted dark:border-stone-700">
+          <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-stone-300 p-6 text-center text-sm text-muted">
             {EMPTY[view]}
           </div>
         ) : view === "live" ? (
@@ -71,7 +71,7 @@ async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchPa
               <li key={p.id}>
                 <Link
                   href={`/projects/${p.id}`}
-                  className="block truncate rounded-2xl bg-surface px-4 py-3 text-sm font-medium shadow-sm ring-1 ring-black/5 transition hover:ring-black/15 dark:ring-white/10 dark:hover:ring-white/20"
+                  className="block truncate rounded-2xl bg-surface px-4 py-3 text-sm font-medium shadow-sm ring-1 ring-black/5 transition hover:ring-black/15"
                 >
                   {p.title}
                 </Link>
@@ -93,7 +93,7 @@ async function DashboardContent({ searchParams }: Pick<PageProps<"/">, "searchPa
           </ViewLink>
           <AddProject />
           {view === "live" && staleCount > 0 && (
-            <span className="hidden text-xs text-amber-600 sm:inline dark:text-amber-400">
+            <span className="hidden text-xs text-amber-600 sm:inline">
               {staleCount} untouched 14+ days
             </span>
           )}
@@ -147,8 +147,8 @@ function Icon({ d }: { d: string }) {
 function Skeleton() {
   return (
     <div className="flex min-h-0 flex-1 gap-5 pb-12" aria-hidden>
-      <div className="flex-1 animate-pulse rounded-2xl bg-stone-200/60 dark:bg-stone-800/60" />
-      <div className="hidden w-80 animate-pulse rounded-2xl bg-stone-200/60 lg:block xl:w-96 dark:bg-stone-800/60" />
+      <div className="flex-1 animate-pulse rounded-2xl bg-stone-200/60" />
+      <div className="hidden w-80 animate-pulse rounded-2xl bg-stone-200/60 lg:block xl:w-96" />
     </div>
   );
 }

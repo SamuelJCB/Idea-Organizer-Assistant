@@ -70,8 +70,8 @@ function dueLabel(due: string, today: string): { text: string; tone: string } {
   const dueDate = parseDay(due);
   const days = Math.round((dueDate.getTime() - parseDay(today).getTime()) / 86_400_000);
 
-  if (days < 0) return { text: "Overdue", tone: "text-red-800 dark:text-red-300 font-medium" };
-  if (days === 0) return { text: "Today", tone: "text-amber-800 dark:text-amber-300 font-medium" };
+  if (days < 0) return { text: "Overdue", tone: "text-red-800 font-medium" };
+  if (days === 0) return { text: "Today", tone: "text-amber-800 font-medium" };
   if (days === 1) return { text: "Tomorrow", tone: "text-foreground" };
   if (days < 7) {
     return { text: dueDate.toLocaleDateString(undefined, { weekday: "short" }), tone: "text-muted" };
@@ -188,7 +188,7 @@ export function TodoPanel({ todos }: { todos: Todo[] }) {
                 className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 text-xs ${
                   todo.done
                     ? "border-emerald-500 bg-emerald-500 text-white"
-                    : "border-stone-300 dark:border-stone-600"
+                    : "border-stone-300"
                 }`}
               >
                 {todo.done && "✓"}

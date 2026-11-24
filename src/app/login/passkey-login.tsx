@@ -51,7 +51,7 @@ export function PasskeyLogin({ autoPrompt }: { autoPrompt: boolean }) {
         {busy ? "Waiting…" : "Sign in with Touch ID or Face ID"}
       </button>
       {failed && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-600">
           That didn&apos;t work. Try again, or use an email code below.
         </p>
       )}

@@ -44,7 +44,7 @@ export function SaveDevice() {
 
   return (
     <span className="flex items-center gap-3 text-sm">
-      {message && <span className="text-red-600 dark:text-red-400">{message}</span>}
+      {message && <span className="text-red-600">{message}</span>}
       <button type="button" onClick={save} disabled={busy} className="text-muted hover:text-foreground">
         {busy ? "Waiting…" : "Save this device"}
       </button>

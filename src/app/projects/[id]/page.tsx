@@ -32,7 +32,7 @@ async function ProjectDetail({ params }: Pick<PageProps<"/projects/[id]">, "para
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <h1 className="text-xl font-semibold leading-snug tracking-tight">{project.title}</h1>
-        <p className={`text-xs ${stale ? "font-medium text-amber-700 dark:text-amber-400" : "text-muted"}`}>
+        <p className={`text-xs ${stale ? "font-medium text-amber-700" : "text-muted"}`}>
           {stale && "⚠ "}Last touched {ageLabel(project.last_touched, now)}
         </p>
         <StatusPicker projectId={project.id} status={project.status} />

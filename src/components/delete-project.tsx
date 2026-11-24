@@ -18,7 +18,7 @@ export function DeleteProject({ projectId, title }: { projectId: string; title: 
       type="button"
       onClick={onClick}
       disabled={pending}
-      className="text-sm text-red-600 disabled:opacity-50 dark:text-red-400"
+      className="text-sm text-red-600 disabled:opacity-50"
     >
       {pending ? "Deleting…" : "Delete project"}
     </button>

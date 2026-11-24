@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
+/* Nova is always light, whatever the device's appearance setting. */
 :root {
+  color-scheme: only light;
   --background: #efeeeb;
   --surface: #ffffff;
   --foreground: #1c1917;
@@ -17,27 +19,6 @@
   --board-target: #f0f8ff;
   --board-held: #eaf6ff;
   --board-held-line: #93c5e8;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0c0a09;
-    --surface: #1c1917;
-    --foreground: #f5f5f4;
-    --muted: #a8a29e;
-    --border: #292524;
-    --accent: #f5f5f4;
-    --accent-foreground: #1c1917;
-    --board-line: #57534e;
-    --piece-inner: #2b4566;
-    --piece-inner-target: #365579;
-    --piece-outer: #292524;
-    --piece-outer-target: #35302d;
-    --piece-corner: #1f1c1a;
-    --board-target: #243a52;
-    --board-held: #2f5573;
-    --board-held-line: #7fb6dc;
-  }
 }
 
 @theme inline {

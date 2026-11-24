@@ -67,7 +67,7 @@ export function ProjectForm({ project }: { project: Project }) {
         {state && !pending && (
           <span
             role="status"
-            className={`text-sm ${state.ok ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}
+            className={`text-sm ${state.ok ? "text-emerald-700" : "text-red-600"}`}
           >
             {state.message}
           </span>
